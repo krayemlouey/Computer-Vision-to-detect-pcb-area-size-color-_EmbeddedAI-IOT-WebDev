@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Système de Détection d'Objets Colorés</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <header>
+        <h1>🎯 Détection d'Objets en Temps Réel</h1>
+        <nav>
+            <a href="index.html" class="active">Détection</a>
+            <a href="login.html">Connexion</a>
+        </nav>
+    </header>
+
+    <main class="detection-container">
+        <div class="detection-section">
+            <!-- Zone de détection caméra -->
+            <div class="camera-section">
+                <h2>📹 Zone de Détection Caméra</h2>
+                <div class="camera-container">
+                    <video id="video" autoplay muted></video>
+                    <canvas id="canvas" style="display: none;"></canvas>
+                </div>
+                <div class="camera-controls">
+                    <button id="startCamera" class="btn primary">Démarrer Caméra</button>
+                    <button id="stopCamera" class="btn secondary">Arrêter Caméra</button>
+                </div>
+                <div class="detection-status">
+                    <span id="detectionStatus">Caméra arrêtée</span>
+                </div>
+            </div>
+
+            <!-- Zone de cadence -->
+            <div class="cadence-section">
+                <h2>⏱️ Cadence de Détection</h2>
+                <div class="cadence-display">
+                    <div class="cadence-item">
+                        <span class="color-indicator red"></span>
+                        <span>Carte microchip:</span>
+                        <span id="cadence-red" class="cadence-value">0.0 /s</span>
+                    </div>
+                    <div class="cadence-item">
+                        <span class="color-indicator green"></span>
+                        <span>Carte personnalisée:</span>
+                        <span id="cadence-green" class="cadence-value">0.0 /s</span>
+                    </div>
+                    <div class="cadence-item">
+                        <span class="color-indicator blue"></span>
+                        <span>STM32:</span>
+                        <span id="cadence-blue" class="cadence-value">0.0 /s</span>
+                    </div>
+                </div>
+                <button id="resetCadence" class="btn secondary">Réinitialiser</button>
+            </div>
+
+            <!-- Zone de capture automatique -->
+            <div class="capture-section">
+                <h2>📸 Captures Automatiques</h2>
+                <div id="latestCapture" class="latest-capture">
+                    <p>Aucune capture récente</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Base de données des détections -->
+        <div class="database-section">
+            <h2>💾 Base de Données des Détections</h2>
+            <div class="database-controls">
+                <button id="refreshDB" class="btn secondary">Actualiser</button>
+                <span class="detection-count">Total: <span id="totalDetections">0</span></span>
+            </div>
+            <div class="database-container">
+                <table id="detectionsTable">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Type</th>
+                            <th>Couleur</th>
+                            <th>Date/Heure</th>
+                            <th>Capture</th>
+                        </tr>
+                    </thead>
+                    <tbody id="detectionsBody">
+                        <!-- Les détections seront ajoutées ici -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <script src="js/detection.js"></script>
+</body>
+</html>

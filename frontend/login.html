@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connexion - Système de Détection</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <header>
+        <h1>🔐 Connexion Administrateur</h1>
+        <nav>
+            <a href="index.html">Détection</a>
+            <a href="login.html" class="active">Connexion</a>
+        </nav>
+    </header>
+
+    <main class="login-container">
+        <div class="login-card">
+            <div class="login-header">
+                <h2>Accès Administrateur</h2>
+                <p>Connectez-vous pour accéder à l'historique des détections</p>
+            </div>
+            
+            <form id="loginForm" class="login-form">
+                <div class="input-group">
+                    <label for="username">Nom d'utilisateur</label>
+                    <input 
+                        type="text" 
+                        id="username" 
+                        name="username" 
+                        required
+                        autocomplete="username"
+                        placeholder="Saisissez votre nom d'utilisateur">
+                </div>
+
+                <div class="input-group">
+                    <label for="password">Mot de passe</label>
+                    <input 
+                        type="password" 
+                        id="password" 
+                        name="password" 
+                        required
+                        autocomplete="current-password"
+                        placeholder="Saisissez votre mot de passe">
+                </div>
+
+                <button type="submit" class="btn primary login-btn">
+                    <span id="loginBtnText">Se connecter</span>
+                    <div id="loginSpinner" class="spinner" style="display: none;"></div>
+                </button>
+
+                <div id="loginMessage" class="message" style="display: none;"></div>
+            </form>
+
+            <div class="login-info">
+                <p class="info-text">
+                    <strong>Identifiants par défaut:</strong><br>
+                    Utilisateur: <code>admin</code><br>
+                    Mot de passe: <code>admin123</code>
+                </p>
+            </div>
+        </div>
+    </main>
+
+    <script src="js/login.js"></script>
+</body>
+</html>

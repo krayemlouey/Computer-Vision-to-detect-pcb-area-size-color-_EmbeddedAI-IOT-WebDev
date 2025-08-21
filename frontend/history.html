@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Historique - Système de Détection</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <header>
+        <h1>📊 Historique des Détections</h1>
+        <nav>
+            <a href="index.html">Détection</a>
+            <a href="login.html">Connexion</a>
+            <a href="history.html" class="active">Historique</a>
+            <button id="logoutBtn" class="btn secondary logout-btn">Déconnexion</button>
+        </nav>
+    </header>
+
+    <main class="history-container">
+        <!-- Section de contrôles -->
+        <div class="history-controls">
+            <div class="controls-row">
+                <h2>🛠️ Outils de Gestion</h2>
+                <div class="action-buttons">
+                    <button id="refreshHistory" class="btn secondary">🔄 Actualiser</button>
+                    <button id="deleteHistory" class="btn danger">🗑️ Supprimer Historique</button>
+                </div>
+            </div>
+
+            <!-- Export des données -->
+            <div class="export-section">
+                <h3>📤 Exportation des Données</h3>
+                <div class="export-form">
+                    <div class="date-inputs">
+                        <div class="input-group">
+                            <label for="startDate">Date de début:</label>
+                            <input type="date" id="startDate" required>
+                        </div>
+                        <div class="input-group">
+                            <label for="endDate">Date de fin:</label>
+                            <input type="date" id="endDate" required>
+                        </div>
+                    </div>
+                    <div class="export-buttons">
+                        <button id="exportCSV" class="btn primary">📊 Exporter CSV</button>
+                        <button id="exportTXT" class="btn primary">📝 Exporter TXT</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Ajout de nouveaux types -->
+            <div class="add-type-section">
+                <h3>➕ Ajouter un Nouveau Type</h3>
+                <form id="addTypeForm" class="add-type-form">
+                    <div class="form-inputs">
+                        <div class="input-group">
+                            <label for="newGId">G_ID (4 chiffres):</label>
+                            <input type="text" id="newGId" pattern="[0-9]{4}" maxlength="4" required placeholder="ex: 1004">
+                        </div>
+                        <div class="input-group">
+                            <label for="newType">Type:</label>
+                            <input type="text" id="newType" required placeholder="ex: Nouveau capteur">
+                        </div>
+                        <div class="input-group">
+                            <label for="newColor">Couleur:</label>
+                            <select id="newColor" required>
+                                <option value="">Sélectionner...</option>
+                                <option value="red">Rouge</option>
+                                <option value="green">Vert</option>
+                                <option value="blue">Bleu</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn success">✅ Ajouter Type</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Section de statistiques -->
+        <div class="stats-section">
+            <h3>📈 Statistiques</h3>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <span class="stat-number" id="totalCount">0</span>
+                    <span class="stat-label">Total Détections</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-number" id="todayCount">0</span>
+                    <span class="stat-label">Aujourd'hui</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-number" id="weekCount">0</span>
+                    <span class="stat-label">Cette Semaine</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section de l'historique groupé par date -->
+        <div class="history-section">
+            <h3>🗓️ Historique par Date</h3>
+            <div id="historyContainer" class="history-timeline">
+                <div class="loading" id="historyLoading">
+                    <div class="spinner"></div>
+                    <p>Chargement de l'historique...</p>
+                </div>
+                <div id="historyContent" style="display: none;">
+                    <!-- L'historique sera inséré ici -->
+                </div>
+                <div id="noHistory" class="no-data" style="display: none;">
+                    <p>Aucune détection dans l'historique</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal de confirmation -->
+    <div id="confirmModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <h3>⚠️ Confirmation</h3>
+            <p id="confirmMessage">Êtes-vous sûr de vouloir effectuer cette action ?</p>
+            <div class="modal-actions">
+                <button id="confirmYes" class="btn danger">Oui</button>
+                <button id="confirmNo" class="btn secondary">Non</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/history.js"></script>
+</body>
+</html>
