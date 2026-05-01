@@ -1,11 +1,60 @@
-# Dépendances Python pour le système de détection
-ultralytics>=8.0.0
-opencv-python>=4.5.0
-numpy>=1.21.0
-Pillow>=8.0.0
+# Dépendances Python pour le système de détection avancé
+# Installation: pip install -r requirements.txt
 
-# Installation:
-# pip install -r requirements.txt
+# Intelligence artificielle et vision par ordinateur
+ultralytics>=8.0.0              # YOLOv11 et autres modèles YOLO
+opencv-python>=4.8.0            # OpenCV pour traitement d'image
+numpy>=1.24.0                   # Calculs numériques
+Pillow>=10.0.0                  # Manipulation d'images
 
-# Note: Le modèle YOLOv8n.pt sera téléchargé automatiquement
-# lors de la première utilisation d'ultralytics
+# Communication réseau
+requests>=2.31.0                # Requêtes HTTP vers l'API
+urllib3>=2.0.0                  # Support URL
+
+# Encodage et décodage
+#base64                          # Encodage base64 (module intégré Python)
+
+# Date et heure
+python-dateutil>=2.8.2         # Manipulation de dates
+
+# Arguments en ligne de commande
+argparse                        # Module intégré Python
+
+# Optionnel: accélération GPU (décommentez si GPU CUDA disponible)
+# torch>=2.0.0                  # PyTorch avec support CUDA
+# torchvision>=0.15.0           # Vision par ordinateur pour PyTorch
+
+# Optionnel: autres modèles de détection
+# tensorflow>=2.13.0            # TensorFlow (alternative à PyTorch)
+# scikit-image>=0.21.0          # Traitement d'image scientifique
+# matplotlib>=3.7.0             # Visualisation (pour debug)
+
+# Développement et débogage (optionnel)
+# jupyter>=1.0.0                # Notebooks pour tests
+# pytest>=7.4.0                 # Tests unitaires
+# Dépendances pour le service Flask de détection
+
+# Flask et WebSocket
+Flask==2.3.3
+Flask-SocketIO==5.3.4
+python-socketio==5.8.0
+
+# Computer Vision et ML
+opencv-python==4.8.1.78
+numpy==1.24.3
+onnxruntime==1.15.1
+
+# Communication HTTP
+requests==2.31.0
+
+# Utilitaires
+Pillow==10.0.0
+python-dateutil==2.8.2
+
+# Optionnel: YOLO et ML avancé
+ultralytics==8.0.196
+torch==2.0.1
+torchvision==0.15.2
+
+# Développement (optionnel)
+python-dotenv==1.0.0

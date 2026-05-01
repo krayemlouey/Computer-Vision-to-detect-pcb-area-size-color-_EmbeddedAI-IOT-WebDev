@@ -1,0 +1,41 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Rust build artifacts
+backend/target/
+
+# Database (generated at runtime)
+*.db
+*.db-shm
+*.db-wal
+
+# Image captures (runtime data, not source code)
+frontend/assets/captures/
+frontend/assets/no_image.jpg
+
+# Backups
+backups/
+
+# ML models (large files)
+*.pt
+*.onnx
+
+# Environment variables
+.env
+.env.local
+
+# OS
+Thumbs.db
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
