@@ -3,129 +3,2383 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Historique - Système de Détection</title>
-    <link rel="stylesheet" href="css/style.css">
+    <title>History - Configuration ESP32 | Système de Détection</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            overflow-x: hidden;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        /* === STYLES PAGE LOGIN === */
+        .login-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .login-box {
+            background: white;
+            padding: 3rem 2.5rem;
+            border-radius: 20px;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2);
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+            animation: slideIn 0.6s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .login-header {
+            margin-bottom: 2rem;
+        }
+
+        .login-header h1 {
+            color: #667eea;
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+            font-weight: 700;
+        }
+
+        .login-header p {
+            color: #666;
+            font-size: 1rem;
+        }
+
+        .login-form {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .input-group {
+            position: relative;
+            text-align: left;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #333;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 0.8rem 1rem;
+            border: 2px solid #e1e8ed;
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            background: #f8f9fa;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .login-btn {
+            padding: 1rem;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 1rem;
+        }
+
+        .login-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .login-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 0.8rem;
+            border-radius: 8px;
+            border: 1px solid #f5c6cb;
+            margin-top: 1rem;
+            display: none;
+            animation: shake 0.5s ease-in-out;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        .back-home {
+            margin-top: 2rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid #e1e8ed;
+        }
+
+        .back-home a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s ease;
+        }
+
+        .back-home a:hover {
+            color: #764ba2;
+        }
+
+        /* === STYLES PAGE PRINCIPALE (après login) === */
+        .main-container {
+            display: none;
+            padding: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+            overflow: hidden;
+        }
+
+        .main-container.authenticated {
+            display: block;
+        }
+
+        .header {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 15px;
+            margin-bottom: 2rem;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            color: #667eea;
+            display: flex;
+            align-items: center;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #4CAF50;
+            margin-left: 10px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(76, 175, 80, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0); }
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .nav-btn {
+            padding: 0.6rem 1.2rem;
+            background: white;
+            border: 2px solid #667eea;
+            color: #667eea;
+            border-radius: 8px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+
+        .nav-btn:hover {
+            background: #667eea;
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .nav-btn.danger {
+            border-color: #e74c3c;
+            color: #e74c3c;
+        }
+
+        .nav-btn.danger:hover {
+            background: #e74c3c;
+            color: white;
+        }
+
+        /* ESP32 Configuration Section */
+        .esp32-section {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            border-radius: 15px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 30px rgba(40, 167, 69, 0.3);
+        }
+
+        .esp32-section h3 {
+            color: white;
+            font-size: 1.8rem;
+            margin-bottom: 2rem;
+            text-align: center;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .esp32-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 2rem;
+        }
+
+        .esp32-panel {
+            background: rgba(255, 255, 255, 0.15);
+            padding: 1.5rem;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .esp32-panel:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+
+        .esp32-panel h4 {
+            margin-bottom: 1.5rem;
+            color: rgba(255, 255, 255, 0.95);
+            text-align: center;
+            font-size: 1.2rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.3);
+        }
+
+        /* Panneau de connexion */
+        .connection-form {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .ip-input {
+            padding: 0.8rem;
+            border: none;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            font-size: 1rem;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .ip-input::placeholder {
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .connect-btn {
+            padding: 0.8rem 1.5rem;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .connect-btn:hover:not(:disabled) {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .connect-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .connection-status {
+            padding: 0.8rem;
+            border-radius: 25px;
+            font-size: 0.95rem;
+            font-weight: bold;
+            text-align: center;
+            margin-top: 1rem;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .connection-status.connected {
+            background: rgba(76, 175, 80, 0.3);
+            border-color: #4CAF50;
+            color: #4CAF50;
+            box-shadow: 0 0 15px rgba(76, 175, 80, 0.4);
+        }
+
+        .connection-status.disconnected {
+            background: rgba(244, 67, 54, 0.3);
+            border-color: #f44336;
+            color: #f44336;
+        }
+
+        .connection-status.connecting {
+            background: rgba(255, 193, 7, 0.3);
+            border-color: #FFC107;
+            color: #ff8f00;
+            animation: connecting 2s infinite;
+        }
+
+        @keyframes connecting {
+            0%, 100% { opacity: 0.7; }
+            50% { opacity: 1; }
+        }
+
+        /* Panneau des données ESP32 */
+        .data-display {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .data-field {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 1rem;
+            border-radius: 10px;
+            border-left: 4px solid rgba(255, 255, 255, 0.5);
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .data-field:hover {
+            background: rgba(255, 255, 255, 0.15);
+            border-left-color: rgba(255, 255, 255, 0.8);
+        }
+
+        .data-field.updating {
+            animation: dataUpdate 0.6s ease;
+            border-left-color: #ffff00 !important;
+            box-shadow: 0 0 15px rgba(255, 255, 0, 0.3);
+        }
+
+        .data-field.duplicate-error {
+            border-left-color: #ff4444 !important;
+            background: rgba(255, 68, 68, 0.2) !important;
+            animation: errorShake 0.5s ease;
+        }
+
+        @keyframes errorShake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        @keyframes dataUpdate {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); box-shadow: 0 0 20px rgba(255, 255, 0, 0.5); }
+            100% { transform: scale(1); }
+        }
+
+        .data-label {
+            font-weight: bold;
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .data-value {
+            color: white;
+            font-size: 1.4rem;
+            font-weight: bold;
+            padding: 0.5rem 1rem;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            text-align: center;
+            min-height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+
+        .data-value.empty {
+            color: rgba(255, 255, 255, 0.5);
+            font-style: italic;
+            font-size: 1rem;
+        }
+
+        .data-value.updating {
+            animation: valueUpdate 0.8s ease;
+        }
+
+        .data-value.duplicate {
+            background: linear-gradient(45deg, #ff4444, #cc0000) !important;
+            color: white !important;
+            animation: duplicateWarning 2s infinite;
+        }
+
+        @keyframes duplicateWarning {
+            0%, 50%, 100% { opacity: 1; }
+            25%, 75% { opacity: 0.6; }
+        }
+
+        @keyframes valueUpdate {
+            0% { transform: scale(1); background: rgba(255, 255, 255, 0.2); }
+            25% { transform: scale(1.1); background: rgba(255, 255, 0, 0.3); }
+            50% { transform: scale(1.05); background: rgba(255, 255, 0, 0.2); }
+            100% { transform: scale(1); background: rgba(255, 255, 255, 0.2); }
+        }
+
+        .data-value.color-rouge {
+            background: linear-gradient(45deg, #e74c3c, #c0392b);
+            box-shadow: 0 4px 15px rgba(231, 76, 60, 0.4);
+        }
+
+        .data-value.color-vert {
+            background: linear-gradient(45deg, #27ae60, #229954);
+            box-shadow: 0 4px 15px rgba(39, 174, 96, 0.4);
+        }
+
+        .data-value.color-bleu {
+            background: linear-gradient(45deg, #3498db, #2980b9);
+            box-shadow: 0 4px 15px rgba(52, 152, 219, 0.4);
+        }
+
+        .data-value.color-jaune {
+            background: linear-gradient(45deg, #f39c12, #e67e22);
+            color: #333 !important;
+            box-shadow: 0 4px 15px rgba(243, 156, 18, 0.4);
+        }
+
+        .data-value.color-noir {
+            background: linear-gradient(45deg, #2c3e50, #34495e);
+            box-shadow: 0 4px 15px rgba(44, 62, 80, 0.4);
+        }
+
+        /* Panneau des actions */
+        .esp32-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .action-btn {
+            padding: 1rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .action-btn.validate {
+            background: linear-gradient(45deg, #28a745, #20c997);
+            color: white;
+            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.4);
+        }
+
+        .action-btn.validate:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(40, 167, 69, 0.6);
+        }
+
+        .action-btn.validate.star-validation {
+            background: linear-gradient(45deg, #ffd700, #ffb347);
+            color: #333;
+            border: 2px solid #ffa500;
+            animation: starGlow 2s infinite alternate;
+        }
+
+        @keyframes starGlow {
+            0% { box-shadow: 0 4px 15px rgba(255, 215, 0, 0.4); }
+            100% { box-shadow: 0 6px 25px rgba(255, 215, 0, 0.8); }
+        }
+
+        .action-btn.cancel {
+            background: linear-gradient(45deg, #f44336, #d32f2f);
+            color: white;
+            box-shadow: 0 4px 15px rgba(244, 67, 54, 0.4);
+        }
+
+        .action-btn.cancel:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(244, 67, 54, 0.6);
+        }
+
+        .action-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+            box-shadow: none !important;
+        }
+
+        .validation-status {
+            padding: 1rem;
+            border-radius: 8px;
+            margin-top: 1rem;
+            font-weight: bold;
+            text-align: center;
+            border: 2px solid;
+            transition: all 0.3s ease;
+        }
+
+        .validation-status.success {
+            background: rgba(76, 175, 80, 0.2);
+            border-color: #4CAF50;
+            color: #4CAF50;
+        }
+
+        .validation-status.error {
+            background: rgba(244, 67, 54, 0.2);
+            border-color: #f44336;
+            color: #f44336;
+        }
+
+        .validation-status.duplicate {
+            background: rgba(255, 68, 68, 0.3);
+            border-color: #ff4444;
+            color: #ff4444;
+            animation: duplicateAlert 1s ease-in-out;
+        }
+
+        @keyframes duplicateAlert {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .validation-status.warning {
+            background: rgba(255, 193, 7, 0.2);
+            border-color: #FFC107;
+            color: #ff8f00;
+        }
+
+        /* Messages */
+        .message {
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            display: none;
+            animation: slideInMsg 0.3s ease;
+        }
+
+        @keyframes slideInMsg {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .message.warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+
+        .message.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        /* Configuration IP Section */
+        .config-section {
+            background: rgba(255, 193, 7, 0.1);
+            border: 2px solid #FFC107;
+            border-radius: 10px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .config-section h4 {
+            color: #ff8f00;
+            margin-bottom: 0.5rem;
+        }
+
+        .ip-config {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .ip-display {
+            background: rgba(255, 255, 255, 0.3);
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            font-family: monospace;
+            font-weight: bold;
+        }
+
+        .debug-info {
+            background: rgba(0, 0, 0, 0.1);
+            padding: 1rem;
+            border-radius: 8px;
+            margin-top: 1rem;
+            font-family: monospace;
+            font-size: 0.8rem;
+        }
+
+        /* Indicateur de saisie en cours */
+        .input-indicator {
+            position: absolute;
+            top: -10px;
+            right: -10px;
+            width: 20px;
+            height: 20px;
+            background: #ffff00;
+            border-radius: 50%;
+            animation: pulse-yellow 1.5s infinite;
+            display: none;
+        }
+
+        @keyframes pulse-yellow {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.2); opacity: 0.7; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .data-field.has-input .input-indicator {
+            display: block;
+        }
+
+        /* Indicateur G_ID duplicate */
+        .duplicate-indicator {
+            position: absolute;
+            top: -10px;
+            left: -10px;
+            width: 24px;
+            height: 24px;
+            background: #ff4444;
+            border-radius: 50%;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 14px;
+            font-weight: bold;
+            animation: duplicateBlink 1s infinite;
+        }
+
+        @keyframes duplicateBlink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0.3; }
+        }
+
+        .data-field.duplicate .duplicate-indicator {
+            display: flex;
+        }
+
+        /* Indicateur de réception des données ESP32 */
+        .esp32-live-indicator {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(40, 167, 69, 0.9);
+            color: white;
+            padding: 0.8rem 1.5rem;
+            border-radius: 25px;
+            font-weight: bold;
+            z-index: 1000;
+            display: none;
+            animation: slideInRight 0.5s ease;
+        }
+        
+        @keyframes slideInRight {
+            from { transform: translateX(300px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        .esp32-live-indicator.show {
+            display: block;
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .esp32-controls {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .main-container {
+                padding: 1rem;
+            }
+            
+            .header {
+                flex-direction: column;
+                gap: 1rem;
+                text-align: center;
+            }
+            
+            .nav-buttons {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+            
+            .esp32-section h3 {
+                font-size: 1.5rem;
+            }
+
+            .login-box {
+                margin: 1rem;
+                padding: 2rem 1.5rem;
+            }
+        }
+
+        /* Loading animation */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        /* Styles pour l'historique groupé par date */
+.date-header-row {
+    background: linear-gradient(135deg, #667eea, #764ba2) !important;
+    color: white !important;
+}
+
+.date-header-row td {
+    font-weight: bold !important;
+    text-transform: uppercase !important;
+    letter-spacing: 1px !important;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.3) !important;
+}
+
+.detection-row {
+    transition: all 0.2s ease !important;
+}
+
+.detection-row:hover {
+    transform: translateX(5px) !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1) !important;
+}
+
+.day-separator {
+    background: linear-gradient(90deg, transparent, rgba(102, 126, 234, 0.3), transparent) !important;
+}
+
+/* Animation d'apparition pour les lignes */
+@keyframes fadeInUp {
+    from { 
+        opacity: 0; 
+        transform: translateY(10px); 
+    }
+    to { 
+        opacity: 1; 
+        transform: translateY(0); 
+    }
+}
+
+.detection-row {
+    animation: fadeInUp 0.3s ease-out;
+}
+    </style>
 </head>
 <body>
-    <header>
-        <h1>📊 Historique des Détections</h1>
-        <nav>
-            <a href="index.html">Détection</a>
-            <a href="login.html">Connexion</a>
-            <a href="history.html" class="active">Historique</a>
-            <button id="logoutBtn" class="btn secondary logout-btn">Déconnexion</button>
-        </nav>
-    </header>
+    <!-- Indicateur de données ESP32 reçues -->
+    <div class="esp32-live-indicator" id="esp32LiveIndicator">
+        Données ESP32 reçues en temps réel!
+    </div>
 
-    <main class="history-container">
-        <!-- Section de contrôles -->
-        <div class="history-controls">
-            <div class="controls-row">
-                <h2>🛠️ Outils de Gestion</h2>
-                <div class="action-buttons">
-                    <button id="refreshHistory" class="btn secondary">🔄 Actualiser</button>
-                    <button id="deleteHistory" class="btn danger">🗑️ Supprimer Historique</button>
-                </div>
+    <!-- PAGE DE LOGIN -->
+    <div class="login-container" id="loginContainer">
+        <div class="login-box">
+            <div class="login-header">
+                <h1>🔐 Accès History</h1>
+                <p>Veuillez vous authentifier pour accéder à la configuration ESP32</p>
             </div>
-
-            <!-- Export des données -->
-            <div class="export-section">
-                <h3>📤 Exportation des Données</h3>
-                <div class="export-form">
-                    <div class="date-inputs">
-                        <div class="input-group">
-                            <label for="startDate">Date de début:</label>
-                            <input type="date" id="startDate" required>
-                        </div>
-                        <div class="input-group">
-                            <label for="endDate">Date de fin:</label>
-                            <input type="date" id="endDate" required>
-                        </div>
-                    </div>
-                    <div class="export-buttons">
-                        <button id="exportCSV" class="btn primary">📊 Exporter CSV</button>
-                        <button id="exportTXT" class="btn primary">📝 Exporter TXT</button>
-                    </div>
+            
+            <form class="login-form" id="loginForm">
+                <div class="input-group">
+                    <label for="username">Nom d'utilisateur</label>
+                    <input type="text" id="username" name="username" required autocomplete="username">
                 </div>
+                
+                <div class="input-group">
+                    <label for="password">Mot de passe</label>
+                    <input type="password" id="password" name="password" required autocomplete="current-password">
+                </div>
+                
+                <button type="submit" class="login-btn" id="loginBtn">
+                    Se connecter
+                </button>
+            </form>
+            
+            <div class="error-message" id="errorMessage">
+                Nom d'utilisateur ou mot de passe incorrect
             </div>
-
-            <!-- Ajout de nouveaux types -->
-            <div class="add-type-section">
-                <h3>➕ Ajouter un Nouveau Type</h3>
-                <form id="addTypeForm" class="add-type-form">
-                    <div class="form-inputs">
-                        <div class="input-group">
-                            <label for="newGId">G_ID (4 chiffres):</label>
-                            <input type="text" id="newGId" pattern="[0-9]{4}" maxlength="4" required placeholder="ex: 1004">
-                        </div>
-                        <div class="input-group">
-                            <label for="newType">Type:</label>
-                            <input type="text" id="newType" required placeholder="ex: Nouveau capteur">
-                        </div>
-                        <div class="input-group">
-                            <label for="newColor">Couleur:</label>
-                            <select id="newColor" required>
-                                <option value="">Sélectionner...</option>
-                                <option value="red">Rouge</option>
-                                <option value="green">Vert</option>
-                                <option value="blue">Bleu</option>
-                            </select>
-                        </div>
-                    </div>
-                    <button type="submit" class="btn success">✅ Ajouter Type</button>
-                </form>
-            </div>
-        </div>
-
-        <!-- Section de statistiques -->
-        <div class="stats-section">
-            <h3>📈 Statistiques</h3>
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <span class="stat-number" id="totalCount">0</span>
-                    <span class="stat-label">Total Détections</span>
-                </div>
-                <div class="stat-card">
-                    <span class="stat-number" id="todayCount">0</span>
-                    <span class="stat-label">Aujourd'hui</span>
-                </div>
-                <div class="stat-card">
-                    <span class="stat-number" id="weekCount">0</span>
-                    <span class="stat-label">Cette Semaine</span>
-                </div>
-            </div>
-        </div>
-
-        <!-- Section de l'historique groupé par date -->
-        <div class="history-section">
-            <h3>🗓️ Historique par Date</h3>
-            <div id="historyContainer" class="history-timeline">
-                <div class="loading" id="historyLoading">
-                    <div class="spinner"></div>
-                    <p>Chargement de l'historique...</p>
-                </div>
-                <div id="historyContent" style="display: none;">
-                    <!-- L'historique sera inséré ici -->
-                </div>
-                <div id="noHistory" class="no-data" style="display: none;">
-                    <p>Aucune détection dans l'historique</p>
-                </div>
-            </div>
-        </div>
-    </main>
-
-    <!-- Modal de confirmation -->
-    <div id="confirmModal" class="modal" style="display: none;">
-        <div class="modal-content">
-            <h3>⚠️ Confirmation</h3>
-            <p id="confirmMessage">Êtes-vous sûr de vouloir effectuer cette action ?</p>
-            <div class="modal-actions">
-                <button id="confirmYes" class="btn danger">Oui</button>
-                <button id="confirmNo" class="btn secondary">Non</button>
+            
+            <div class="back-home">
+                <a href="index.html">← Retour à l'accueil</a>
             </div>
         </div>
     </div>
 
-    <script src="js/history.js"></script>
+    <!-- PAGE PRINCIPALE (après authentification) -->
+    <div class="main-container" id="mainContainer">
+        <!-- Header -->
+        <div class="header">
+            <h1>
+                History - Configuration ESP32
+                <span class="status-indicator" id="statusIndicator"></span>
+            </h1>
+            <div class="nav-buttons">
+                <a href="index.html" class="nav-btn">Détection</a>
+                <button class="nav-btn" onclick="refreshESP32Status()">Actualiser</button>
+                <button class="nav-btn danger" onclick="logout()">Déconnexion</button>
+            </div>
+        </div>
+
+        <!-- Configuration IP Section -->
+        <div class="config-section">
+            <h4>Configuration Réseau ESP32</h4>
+            <div class="ip-config">
+                <span>ESP32 IP actuelle:</span>
+                <span class="ip-display" id="currentESP32IP">Non définie</span>
+                <span>Port:</span>
+                <span class="ip-display">80</span>
+                <button class="nav-btn" onclick="changeESP32IP()" style="margin-left: auto;">Changer IP ESP32</button>
+            </div>
+        </div>
+
+        <!-- Messages -->
+        <div class="message" id="messageDiv"></div>
+
+        <!-- ESP32 Configuration Section -->
+        <div class="esp32-section">
+            <h3>Interface ESP32 - Keypad & LCD (Temps Réel) - Validation avec '*'</h3>
+            
+            <div class="esp32-controls">
+                <!-- Panneau de connexion ESP32 -->
+                <div class="esp32-panel">
+                    <h4>Connexion ESP32</h4>
+                    <div class="connection-form">
+                        <input type="text" class="ip-input" id="esp32IP" placeholder="Ex: 192.168.1.100" value="">
+                        <button class="connect-btn" id="connectESP32Btn" onclick="connectToESP32()">
+                            Tester Connexion
+                        </button>
+                    </div>
+                    <div class="connection-status disconnected" id="esp32StatusDisplay">
+                        ESP32 Non Connecté
+                    </div>
+                    <div class="debug-info" id="debugInfo">
+                        Statut: En attente de configuration
+                    </div>
+                </div>
+
+                <!-- Panneau des données reçues ESP32 -->
+                <div class="esp32-panel">
+                    <h4>Données ESP32 (Temps Réel)</h4>
+                    <div class="data-display">
+                        <div class="data-field" id="colorField">
+                            <div class="input-indicator"></div>
+                            <div class="data-label">Couleur Sélectionnée</div>
+                            <div class="data-value empty" id="esp32Color">En attente...</div>
+                        </div>
+                        <div class="data-field" id="gidField">
+                            <div class="input-indicator"></div>
+                            <div class="duplicate-indicator">!</div>
+                            <div class="data-label">G_ID Saisi (4 chiffres)</div>
+                            <div class="data-value empty" id="esp32GID">----</div>
+                        </div>
+                        <div class="data-field" id="nameField">
+                            <div class="input-indicator"></div>
+                            <div class="data-label">Nom Personnalisé</div>
+                            <div class="data-value empty" id="esp32Name">En attente...</div>
+                        </div>
+                    </div>
+                    <div class="validation-status" id="validationMessage" style="display: none;"></div>
+                </div>
+
+                <!-- Panneau des actions ESP32 -->
+                <div class="esp32-panel">
+                    <h4>Actions</h4>
+                    <div class="esp32-actions">
+                        <button class="action-btn validate star-validation" id="confirmBtn" onclick="confirmESP32UpdateWithStar()" disabled>
+                            ⭐ Valider avec '*' (Après vérification unicité)
+                        </button>
+                        <button class="action-btn cancel" id="cancelBtn" onclick="cancelESP32Update()" disabled>
+                            Rejeter
+                        </button>
+                        <button class="nav-btn" onclick="refreshESP32Status()" style="background: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.3); color: white; margin-top: 0.5rem;">
+                            Status ESP32
+                        </button>
+                        <button class="nav-btn" onclick="simulateRealTimeInput()" style="background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.2); color: white; margin-top: 0.5rem; font-size: 0.8rem;">
+                            Test Saisie Temps Réel
+                        </button>
+                        <button class="nav-btn" onclick="testDuplicateGID()" style="background: rgba(255,100,100,0.2); border: 2px solid rgba(255,100,100,0.3); color: white; margin-top: 0.5rem; font-size: 0.8rem;">
+                            🧪 Test G_ID Duplicate
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Historique des détections (après la section ESP32) -->
+<div class="database-section" style="background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(15px); padding: 30px; border-radius: 20px; box-shadow: 0 8px 35px rgba(0, 0, 0, 0.15); margin-top: 35px; border: 1px solid rgba(255,255,255,0.2);">
+    <h2 style="color: #2c3e50; font-size: 24px; font-weight: 700; margin-bottom: 25px;">Historique des Détections et Classifications</h2>
+    
+    <div class="database-controls" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; flex-wrap: wrap; gap: 15px;">
+        <div class="controls-left" style="display: flex; gap: 15px; flex-wrap: wrap;">
+            <button id="refreshHistoryDB" class="nav-btn">Actualiser</button>
+            <button id="exportHistoryData" class="nav-btn">Exporter CSV</button>
+            <button id="clearHistoryData" class="nav-btn danger">Vider l'historique</button>
+        </div>
+        <div class="detection-count" id="historyDetectionCount" style="color: #7f8c8d; font-weight: 600; font-size: 16px;">Chargement...</div>
+    </div>
+    
+    <div class="database-container" style="overflow-x: auto; border-radius: 12px; border: 1px solid #dee2e6; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+        <table id="historyDetectionsTable" style="width: 100%; border-collapse: collapse; background: white;">
+            <thead>
+                <tr>
+                    <th style="background: linear-gradient(135deg, #f8f9fa, #e9ecef); color: #495057; font-weight: 700; padding: 18px 20px; text-align: left; border-bottom: 3px solid #dee2e6; font-size: 15px;">ID</th>
+                    <th style="background: linear-gradient(135deg, #f8f9fa, #e9ecef); color: #495057; font-weight: 700; padding: 18px 20px; text-align: left; border-bottom: 3px solid #dee2e6; font-size: 15px;">G_ID</th>
+                    <th style="background: linear-gradient(135deg, #f8f9fa, #e9ecef); color: #495057; font-weight: 700; padding: 18px 20px; text-align: left; border-bottom: 3px solid #dee2e6; font-size: 15px;">Type</th>
+                    <th style="background: linear-gradient(135deg, #f8f9fa, #e9ecef); color: #495057; font-weight: 700; padding: 18px 20px; text-align: left; border-bottom: 3px solid #dee2e6; font-size: 15px;">Couleur</th>
+                    <th style="background: linear-gradient(135deg, #f8f9fa, #e9ecef); color: #495057; font-weight: 700; padding: 18px 20px; text-align: left; border-bottom: 3px solid #dee2e6; font-size: 15px;">Confiance</th>
+                    <th style="background: linear-gradient(135deg, #f8f9fa, #e9ecef); color: #495057; font-weight: 700; padding: 18px 20px; text-align: left; border-bottom: 3px solid #dee2e6; font-size: 15px;">Date/Heure</th>
+                    <th style="background: linear-gradient(135deg, #f8f9fa, #e9ecef); color: #495057; font-weight: 700; padding: 18px 20px; text-align: left; border-bottom: 3px solid #dee2e6; font-size: 15px;">Image</th>
+                </tr>
+            </thead>
+            <tbody id="historyDetectionsBody">
+                <tr>
+                    <td colspan="7" style="text-align: center; padding: 60px; color: #7f8c8d;">
+                        <div style="font-size: 72px; margin-bottom: 25px; opacity: 0.3;">📊</div>
+                        <div><strong>Chargement de l'historique...</strong></div>
+                        <small>Veuillez patienter</small>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+    <script>
+        // === CONFIGURATION ===
+        const LOGIN_CREDENTIALS = {
+            username: 'admin',
+            password: 'admin123'
+        };
+
+        // Configuration ESP32
+        let ESP32_IP = '';
+        let ESP32_PORT = '80';
+        let RUST_SERVER_IP = '172.20.158.34';
+        let RUST_SERVER_PORT = '3001';
+        
+        let esp32Connected = false;
+        let currentESP32Data = {};
+        let esp32MonitoringActive = false;
+        let lastKnownData = { color: '', g_id: '', type_name: '' };
+        let historicalGIDs = new Set(['1001', '1002', '1003', '1004', '1005']);
+        let awaitingStarValidation = false;
+        let isAuthenticated = false;
+
+        // === INITIALISATION ===
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 Initialisation page History avec authentification');
+            
+            // Vérifier l'authentification stockée
+            const savedAuth = sessionStorage.getItem('history_authenticated');
+            if (savedAuth === 'true') {
+                authenticateUser();
+            }
+            
+            // Gestion du formulaire de login
+            document.getElementById('loginForm').addEventListener('submit', handleLogin);
+        });
+
+        // === GESTION AUTHENTIFICATION ===
+        function handleLogin(event) {
+            event.preventDefault();
+            
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+            const errorMessage = document.getElementById('errorMessage');
+            const loginBtn = document.getElementById('loginBtn');
+            
+            // Reset de l'affichage des erreurs
+            errorMessage.style.display = 'none';
+            
+            // Validation basique
+            if (!username || !password) {
+                showLoginError('Veuillez saisir tous les champs');
+                return;
+            }
+            
+            // Animation de chargement
+            loginBtn.disabled = true;
+            loginBtn.innerHTML = '<div class="loading"></div> Vérification...';
+            
+            // Simulation d'un délai réseau
+            setTimeout(() => {
+                if (username === LOGIN_CREDENTIALS.username && password === LOGIN_CREDENTIALS.password) {
+                    // Authentification réussie
+                    sessionStorage.setItem('history_authenticated', 'true');
+                    authenticateUser();
+                    showMessage('✅ Connexion réussie! Accès à la configuration ESP32 activé.', 'success');
+                } else {
+                    // Authentification échouée
+                    showLoginError('Nom d\'utilisateur ou mot de passe incorrect');
+                    
+                    // Effet de secousse sur la boîte de login
+                    const loginBox = document.querySelector('.login-box');
+                    loginBox.style.animation = 'shake 0.5s ease-in-out';
+                    setTimeout(() => {
+                        loginBox.style.animation = '';
+                    }, 500);
+                }
+                
+                loginBtn.disabled = false;
+                loginBtn.innerHTML = 'Se connecter';
+            }, 1000);
+        }
+
+        function showLoginError(message) {
+            const errorMessage = document.getElementById('errorMessage');
+            errorMessage.textContent = message;
+            errorMessage.style.display = 'block';
+        }
+
+        function authenticateUser() {
+            isAuthenticated = true;
+            
+            // Masquer la page de login
+            document.getElementById('loginContainer').style.display = 'none';
+            
+            // Afficher la page principale
+            document.getElementById('mainContainer').classList.add('authenticated');
+            
+            // Initialiser la partie ESP32
+            initializeESP32();
+        }
+
+        function logout() {
+            if (confirm('Êtes-vous sûr de vouloir vous déconnecter?')) {
+                isAuthenticated = false;
+                sessionStorage.removeItem('history_authenticated');
+                
+                // Arrêter la surveillance ESP32
+                if (window.esp32MonitorInterval) {
+                    clearInterval(window.esp32MonitorInterval);
+                }
+                
+                // Réinitialiser les données
+                resetESP32Data();
+                
+                // Retourner à la page de login
+                document.getElementById('mainContainer').classList.remove('authenticated');
+                document.getElementById('loginContainer').style.display = 'flex';
+                
+                // Réinitialiser le formulaire
+                document.getElementById('loginForm').reset();
+                document.getElementById('errorMessage').style.display = 'none';
+                
+                showMessage('Déconnexion réussie', 'info');
+            }
+        }
+
+        // === INITIALISATION ESP32 ===
+        function initializeESP32() {
+            console.log('🔧 Initialisation ESP32 après authentification');
+            
+            // Chargement de l'IP sauvegardée
+            const savedIP = localStorage.getItem('esp32_ip');
+            if (savedIP) {
+                ESP32_IP = savedIP;
+                document.getElementById('esp32IP').value = savedIP;
+                document.getElementById('currentESP32IP').textContent = savedIP;
+                updateDebugInfo(`IP ESP32 chargée: ${savedIP}`);
+            } else {
+                updateDebugInfo('Aucune IP ESP32 configurée');
+            }
+            
+            console.log('📚 G_IDs historiques:', Array.from(historicalGIDs));
+        }
+
+        // === GESTION DES G_IDs EXISTANTS ===
+        function isGIDDuplicate(gid) {
+            const isDuplicate = historicalGIDs.has(gid);
+            console.log(`🔍 Vérification G_ID ${gid}: ${isDuplicate ? 'DUPLICATE' : 'UNIQUE'}`);
+            return isDuplicate;
+        }
+
+        function addGIDToHistory(gid) {
+            historicalGIDs.add(gid);
+            console.log(`✅ G_ID ${gid} ajouté à l'historique`);
+        }
+
+        // === GESTION CHANGEMENT D'IP ESP32 ===
+        function changeESP32IP() {
+            if (!isAuthenticated) return;
+            
+            const newIP = prompt('Entrez l\'adresse IP de votre ESP32:', ESP32_IP);
+            
+            if (newIP && newIP !== ESP32_IP) {
+                ESP32_IP = newIP;
+                
+                localStorage.setItem('esp32_ip', ESP32_IP);
+                
+                document.getElementById('currentESP32IP').textContent = ESP32_IP;
+                document.getElementById('esp32IP').value = ESP32_IP;
+                
+                esp32Connected = false;
+                showMessage(`IP ESP32 changée vers ${ESP32_IP}`, 'info');
+                updateDebugInfo(`IP ESP32 mise à jour: ${ESP32_IP}`);
+                
+                setTimeout(() => {
+                    connectToESP32();
+                }, 1000);
+            }
+        }
+
+        function updateDebugInfo(message) {
+            const debugElement = document.getElementById('debugInfo');
+            const timestamp = new Date().toLocaleTimeString();
+            debugElement.textContent = `[${timestamp}] ${message}`;
+        }
+
+        // === CONNEXION ESP32 ===
+        async function connectToESP32() {
+            if (!isAuthenticated) return;
+            
+            const ipInput = document.getElementById('esp32IP');
+            const connectBtn = document.getElementById('connectESP32Btn');
+            const statusDisplay = document.getElementById('esp32StatusDisplay');
+            
+            const inputIP = ipInput.value.trim();
+            if (!inputIP) {
+                showMessage('⚠️ Veuillez saisir une adresse IP ESP32', 'warning');
+                return;
+            }
+            
+            if (inputIP !== ESP32_IP) {
+                ESP32_IP = inputIP;
+                localStorage.setItem('esp32_ip', ESP32_IP);
+                document.getElementById('currentESP32IP').textContent = ESP32_IP;
+            }
+            
+            connectBtn.disabled = true;
+            connectBtn.textContent = 'Test en cours...';
+            statusDisplay.textContent = 'Test de connexion à l\'ESP32...';
+            statusDisplay.className = 'connection-status connecting';
+            updateDebugInfo(`Test connexion ESP32: ${ESP32_IP}:${ESP32_PORT}`);
+            
+            try {
+                console.log('Test connexion ESP32:', `http://${ESP32_IP}:${ESP32_PORT}/api/esp32/ping`);
+                
+                const response = await fetch(`http://${ESP32_IP}:${ESP32_PORT}/api/esp32/ping`, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    },
+                    mode: 'cors',
+                    timeout: 8000
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    esp32Connected = true;
+                    statusDisplay.textContent = `ESP32 Connecté - ${data.message || 'Opérationnel'}`;
+                    statusDisplay.className = 'connection-status connected';
+                    showMessage('ESP32 connecté avec succès! Surveillance temps réel activée avec validation *.', 'success');
+                    updateDebugInfo(`ESP32 connecté: ${data.status} - Validation par *`);
+                    
+                    startRealTimeESP32Monitoring();
+                    await loadESP32CurrentData();
+                    
+                } else {
+                    throw new Error(`Réponse HTTP: ${response.status}`);
+                }
+                
+            } catch (error) {
+                esp32Connected = false;
+                statusDisplay.textContent = 'Connexion échouée';
+                statusDisplay.className = 'connection-status disconnected';
+                
+                console.error('❌ Erreur connexion ESP32:', error);
+                updateDebugInfo(`Erreur: ${error.message}`);
+                
+                showMessage(`Impossible de connecter l'ESP32 ${ESP32_IP}: ${error.message}`, 'error');
+            }
+            
+            connectBtn.disabled = false;
+            connectBtn.textContent = esp32Connected ? '✅ Reconnectée' : 'Tester Connexion';
+        }
+
+        // === SURVEILLANCE ESP32 TEMPS RÉEL ===
+        function startRealTimeESP32Monitoring() {
+            if (window.esp32MonitorInterval) {
+                clearInterval(window.esp32MonitorInterval);
+            }
+            
+            esp32MonitoringActive = true;
+            console.log('👁️ Démarrage surveillance ESP32 temps réel avec validation *...');
+            updateDebugInfo('Surveillance ESP32 temps réel démarrée - Validation par *');
+            
+            window.esp32MonitorInterval = setInterval(async () => {
+                if (esp32Connected && esp32MonitoringActive && isAuthenticated) {
+                    await loadESP32CurrentDataRealTime();
+                }
+            }, 500);
+        }
+
+        async function loadESP32CurrentDataRealTime() {
+            if (!esp32Connected || !ESP32_IP || !isAuthenticated) return;
+            
+            try {
+                const response = await fetch(`http://${ESP32_IP}:${ESP32_PORT}/api/esp32/current-data`, {
+                    method: 'GET',
+                    headers: { 'Accept': 'application/json' },
+                    mode: 'cors',
+                    timeout: 3000
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    let hasChanges = false;
+                    let changeType = [];
+                    
+                    if (data.color && data.color !== lastKnownData.color) {
+                        updateColorFieldRealTime(data.color);
+                        lastKnownData.color = data.color;
+                        hasChanges = true;
+                        changeType.push('couleur');
+                    }
+                    
+                    if (data.g_id && data.g_id !== lastKnownData.g_id) {
+                        updateGIDFieldRealTime(data.g_id);
+                        lastKnownData.g_id = data.g_id;
+                        hasChanges = true;
+                        changeType.push('G_ID');
+                        
+                        checkGIDUnicityRealTime(data.g_id);
+                    }
+                    
+                    if (data.type_name && data.type_name !== lastKnownData.type_name) {
+                        updateNameFieldRealTime(data.type_name);
+                        lastKnownData.type_name = data.type_name;
+                        hasChanges = true;
+                        changeType.push('nom');
+                    }
+                    
+                    if (data.state === 'Confirm') {
+                        awaitingStarValidation = true;
+                        updateDebugInfo('ESP32 en attente de validation avec *');
+                        showMessage('ESP32 attend la validation avec la touche *', 'warning');
+                        
+                        const confirmBtn = document.getElementById('confirmBtn');
+                        confirmBtn.classList.add('star-validation');
+                        confirmBtn.innerHTML = '⭐ APPUYEZ SUR * pour valider (Vérification unicité en cours)';
+                    }
+                    
+                    if (hasChanges) {
+                        console.log('🆕 Changement détecté ESP32:', changeType.join(', '), data);
+                        currentESP32Data = data;
+                        showESP32LiveIndicator(`${changeType.join(', ')} mis à jour!`);
+                        showMessage(`Temps réel: ${changeType.join(', ')} mis à jour`, 'info');
+                        
+                        if (data.color && data.g_id && data.type_name) {
+                            validateESP32DataWithUnicity(data);
+                        }
+                    }
+                    
+                    updateDebugInfo(`Temps réel: ${data.state || 'monitoring'} - Validation: ${awaitingStarValidation ? 'En attente *' : 'Prêt'}`);
+                }
+                
+            } catch (error) {
+                console.error('❌ Erreur surveillance temps réel:', error);
+            }
+        }
+
+        // === VÉRIFICATION UNICITÉ G_ID EN TEMPS RÉEL ===
+        function checkGIDUnicityRealTime(gid) {
+            const gidField = document.getElementById('gidField');
+            const gidElement = document.getElementById('esp32GID');
+            
+            if (isGIDDuplicate(gid)) {
+                console.log('🚨 G_ID DUPLICATE détecté en temps réel:', gid);
+                
+                gidField.classList.add('duplicate-error', 'duplicate');
+                gidElement.classList.add('duplicate');
+                
+                const validationMessage = document.getElementById('validationMessage');
+                validationMessage.textContent = `❌ G_ID ${gid} déjà utilisé! Impossible de valider.`;
+                validationMessage.className = 'validation-status duplicate';
+                validationMessage.style.display = 'block';
+                
+                enableActionButtons(false);
+                awaitingStarValidation = false;
+                
+                showMessage(`🚨 G_ID ${gid} existe déjà dans l'historique! Modification requise.`, 'error');
+                updateDebugInfo(`G_ID duplicate bloqué: ${gid}`);
+                
+            } else {
+                console.log('✅ G_ID unique confirmé en temps réel:', gid);
+                
+                gidField.classList.remove('duplicate-error', 'duplicate');
+                gidElement.classList.remove('duplicate');
+                
+                enableActionButtons(true);
+                
+                showMessage(`✅ G_ID ${gid} disponible - Validation possible avec *`, 'success');
+                updateDebugInfo(`G_ID unique confirmé: ${gid}`);
+            }
+        }
+
+        // === MISE À JOUR TEMPS RÉEL DES CHAMPS ===
+        function updateColorFieldRealTime(color) {
+            const colorElement = document.getElementById('esp32Color');
+            const colorField = document.getElementById('colorField');
+            
+            colorField.classList.add('updating', 'has-input');
+            colorElement.classList.add('updating');
+            
+            setTimeout(() => {
+                colorElement.textContent = color.toUpperCase();
+                colorElement.className = `data-value color-${color.toLowerCase()}`;
+                
+                colorElement.style.transform = 'scale(1.15)';
+                setTimeout(() => {
+                    colorElement.style.transform = 'scale(1)';
+                    colorField.classList.remove('updating');
+                    colorElement.classList.remove('updating');
+                }, 600);
+            }, 300);
+            
+            console.log(`🎨 Couleur mise à jour temps réel: ${color}`);
+        }
+
+        function updateGIDFieldRealTime(gid) {
+            const gidElement = document.getElementById('esp32GID');
+            const gidField = document.getElementById('gidField');
+            
+            gidField.classList.remove('duplicate-error', 'duplicate');
+            gidElement.classList.remove('duplicate');
+            
+            gidField.classList.add('updating', 'has-input');
+            gidElement.classList.add('updating');
+            
+            setTimeout(() => {
+                animateGIDInput(gid, gidElement);
+                
+                setTimeout(() => {
+                    gidField.classList.remove('updating');
+                    gidElement.classList.remove('updating');
+                }, 800);
+            }, 300);
+            
+            console.log(`🔢 G_ID mis à jour temps réel: ${gid}`);
+        }
+
+        function updateNameFieldRealTime(name) {
+            const nameElement = document.getElementById('esp32Name');
+            const nameField = document.getElementById('nameField');
+            
+            nameField.classList.add('updating', 'has-input');
+            nameElement.classList.add('updating');
+            
+            setTimeout(() => {
+                animateNameInput(name, nameElement);
+                
+                setTimeout(() => {
+                    nameField.classList.remove('updating');
+                    nameElement.classList.remove('updating');
+                }, 1000);
+            }, 300);
+            
+            console.log(`📝 Nom mis à jour temps réel: ${name}`);
+        }
+
+        // === ANIMATIONS DE SAISIE ===
+        function animateGIDInput(finalGID, element) {
+            element.textContent = '';
+            element.className = 'data-value';
+            
+            let currentGID = '';
+            const inputDelay = 200;
+            
+            for (let i = 0; i < finalGID.length; i++) {
+                setTimeout(() => {
+                    currentGID += finalGID[i];
+                    element.textContent = currentGID + '_'.repeat(4 - currentGID.length);
+                    
+                    element.style.transform = 'scale(1.1)';
+                    setTimeout(() => element.style.transform = 'scale(1)', 100);
+                    
+                    if (currentGID.length === 4) {
+                        setTimeout(() => {
+                            element.textContent = finalGID;
+                            
+                            if (isGIDDuplicate(finalGID)) {
+                                element.classList.add('duplicate');
+                                element.style.background = 'linear-gradient(45deg, #ff4444, #cc0000)';
+                            } else {
+                                element.style.background = 'linear-gradient(45deg, #28a745, #20c997)';
+                            }
+                            
+                            setTimeout(() => {
+                                if (!element.classList.contains('duplicate')) {
+                                    element.style.background = 'rgba(255, 255, 255, 0.2)';
+                                }
+                            }, 500);
+                        }, 300);
+                    }
+                }, i * inputDelay);
+            }
+        }
+
+        function animateNameInput(finalName, element) {
+            element.textContent = '';
+            element.className = 'data-value';
+            
+            let currentName = '';
+            const inputDelay = 150;
+            
+            for (let i = 0; i < finalName.length; i++) {
+                setTimeout(() => {
+                    currentName += finalName[i];
+                    element.textContent = currentName;
+                    
+                    element.style.transform = 'scale(1.05)';
+                    element.style.color = '#ffff00';
+                    setTimeout(() => {
+                        element.style.transform = 'scale(1)';
+                        element.style.color = 'white';
+                    }, 100);
+                    
+                    if (currentName === finalName) {
+                        setTimeout(() => {
+                            element.style.background = 'linear-gradient(45deg, #17a2b8, #138496)';
+                            setTimeout(() => {
+                                element.style.background = 'rgba(255, 255, 255, 0.2)';
+                            }, 500);
+                        }, 300);
+                    }
+                }, i * inputDelay);
+            }
+        }
+
+        async function loadESP32CurrentData() {
+            if (!esp32Connected || !ESP32_IP || !isAuthenticated) return;
+            
+            try {
+                const response = await fetch(`http://${ESP32_IP}:${ESP32_PORT}/api/esp32/current-data`, {
+                    method: 'GET',
+                    headers: { 'Accept': 'application/json' },
+                    mode: 'cors',
+                    timeout: 5000
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    if (data.has_data) {
+                        console.log('🆕 Données ESP32 initiales:', data);
+                        currentESP32Data = data;
+                        updateESP32Display(data);
+                        
+                        lastKnownData = {
+                            color: data.color || '',
+                            g_id: data.g_id || '',
+                            type_name: data.type_name || ''
+                        };
+                        
+                        if (data.g_id) {
+                            checkGIDUnicityRealTime(data.g_id);
+                        }
+                    }
+                    
+                    updateDebugInfo(`État ESP32: ${data.state}`);
+                }
+                
+            } catch (error) {
+                console.error('❌ Erreur chargement données ESP32:', error);
+            }
+        }
+
+        function updateESP32Display(data) {
+            const colorElement = document.getElementById('esp32Color');
+            const gidElement = document.getElementById('esp32GID');
+            const nameElement = document.getElementById('esp32Name');
+            
+            if (data.color) {
+                colorElement.textContent = data.color.toUpperCase();
+                colorElement.className = `data-value color-${data.color.toLowerCase()}`;
+                document.getElementById('colorField').classList.add('has-input');
+            } else {
+                colorElement.textContent = 'En attente...';
+                colorElement.className = 'data-value empty';
+                document.getElementById('colorField').classList.remove('has-input');
+            }
+            
+            if (data.g_id) {
+                gidElement.textContent = data.g_id;
+                gidElement.className = 'data-value';
+                document.getElementById('gidField').classList.add('has-input');
+                
+                if (isGIDDuplicate(data.g_id)) {
+                    const gidField = document.getElementById('gidField');
+                    gidField.classList.add('duplicate');
+                    gidElement.classList.add('duplicate');
+                }
+            } else {
+                gidElement.textContent = '----';
+                gidElement.className = 'data-value empty';
+                document.getElementById('gidField').classList.remove('has-input', 'duplicate');
+            }
+            
+            if (data.type_name) {
+                nameElement.textContent = data.type_name;
+                nameElement.className = 'data-value';
+                document.getElementById('nameField').classList.add('has-input');
+            } else {
+                nameElement.textContent = 'En attente...';
+                nameElement.className = 'data-value empty';
+                document.getElementById('nameField').classList.remove('has-input');
+            }
+            
+            const hasCompleteData = data.color && data.g_id && data.type_name;
+            const isUnique = !data.g_id || !isGIDDuplicate(data.g_id);
+            enableActionButtons(hasCompleteData && isUnique);
+            
+            if (hasCompleteData) {
+                validateESP32DataWithUnicity(data);
+            }
+        }
+
+        function enableActionButtons(enable) {
+            document.getElementById('confirmBtn').disabled = !enable;
+            document.getElementById('cancelBtn').disabled = !enable;
+            
+            const confirmBtn = document.getElementById('confirmBtn');
+            if (enable) {
+                confirmBtn.classList.add('star-validation');
+                confirmBtn.innerHTML = '⭐ PRÊT - Appuyez sur * sur ESP32 pour valider';
+            } else {
+                confirmBtn.classList.remove('star-validation');
+                confirmBtn.innerHTML = '⭐ En attente de données valides et uniques';
+            }
+        }
+
+        function validateESP32DataWithUnicity(data) {
+            const validation = { valid: true, errors: [] };
+            
+            if (!data.color) {
+                validation.valid = false;
+                validation.errors.push('Couleur manquante');
+            }
+            
+            if (!data.g_id || data.g_id.length !== 4) {
+                validation.valid = false;
+                validation.errors.push('G_ID doit contenir 4 chiffres');
+            } else if (isGIDDuplicate(data.g_id)) {
+                validation.valid = false;
+                validation.errors.push(`G_ID ${data.g_id} déjà utilisé`);
+            }
+            
+            if (!data.type_name || data.type_name.trim().length === 0) {
+                validation.valid = false;
+                validation.errors.push('Nom requis');
+            }
+            
+            showValidationMessage(validation, data);
+        }
+
+        function showValidationMessage(validation, data) {
+            const messageElement = document.getElementById('validationMessage');
+            
+            if (validation.valid) {
+                messageElement.textContent = '✅ Données valides et G_ID unique - Appuyez sur * sur ESP32';
+                messageElement.className = 'validation-status success';
+                awaitingStarValidation = true;
+            } else {
+                if (validation.errors.some(error => error.includes('déjà utilisé'))) {
+                    messageElement.textContent = '🚨 ' + validation.errors.join(', ');
+                    messageElement.className = 'validation-status duplicate';
+                } else {
+                    messageElement.textContent = '❌ Erreurs: ' + validation.errors.join(', ');
+                    messageElement.className = 'validation-status error';
+                }
+                awaitingStarValidation = false;
+            }
+            
+            messageElement.style.display = 'block';
+        }
+
+        function hideValidationMessage() {
+            document.getElementById('validationMessage').style.display = 'none';
+        }
+
+        // === ACTIONS ESP32 AVEC VALIDATION '*' ===
+        async function confirmESP32UpdateWithStar() {
+            if (!isAuthenticated) return;
+            
+            if (!currentESP32Data.color || !currentESP32Data.g_id || !currentESP32Data.type_name) {
+                showMessage('❌ Données ESP32 incomplètes', 'error');
+                return;
+            }
+            
+            if (isGIDDuplicate(currentESP32Data.g_id)) {
+                showMessage(`❌ G_ID ${currentESP32Data.g_id} déjà utilisé! Impossible de valider.`, 'error');
+                return;
+            }
+            
+            if (!awaitingStarValidation) {
+                showMessage('⚠️ Veuillez d\'abord appuyer sur * sur le keypad ESP32', 'warning');
+                return;
+            }
+            
+            const confirmBtn = document.getElementById('confirmBtn');
+            const originalText = confirmBtn.innerHTML;
+            confirmBtn.disabled = true;
+            confirmBtn.innerHTML = '⭐ Validation en cours...';
+            
+            try {
+                console.log('📤 Validation des données ESP32 avec *:', currentESP32Data);
+                updateDebugInfo(`Validation *: ${currentESP32Data.color} ${currentESP32Data.g_id} ${currentESP32Data.type_name}`);
+                
+                let success = await sendViaESP32ToRust();
+                
+                if (!success) {
+                    success = await sendDirectlyToRust();
+                }
+                
+                if (!success) {
+                    saveLocally();
+                    success = true;
+                }
+                
+                if (success) {
+                    addGIDToHistory(currentESP32Data.g_id);
+                    
+                    showMessage(`✅ Validation avec * réussie! G_ID ${currentESP32Data.g_id} sauvegardé.`, 'success');
+                    
+                    resetESP32Data();
+                    hideValidationMessage();
+                    awaitingStarValidation = false;
+                    
+                } else {
+                    showMessage('❌ Erreur lors de la validation', 'error');
+                }
+                
+            } catch (error) {
+                console.error('❌ Erreur validation ESP32:', error);
+                showMessage(`❌ Erreur validation: ${error.message}`, 'error');
+            }
+            
+            confirmBtn.disabled = false;
+            confirmBtn.innerHTML = originalText;
+        }
+
+        async function cancelESP32Update() {
+            if (!isAuthenticated) return;
+            
+            console.log('❌ Annulation de la mise à jour ESP32');
+            
+            try {
+                if (esp32Connected) {
+                    await fetch(`http://${ESP32_IP}:${ESP32_PORT}/api/esp32/command`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ command: 'reset' }),
+                        mode: 'cors'
+                    });
+                }
+            } catch (error) {
+                console.error('Erreur annulation ESP32:', error);
+            }
+            
+            resetESP32Data();
+            hideValidationMessage();
+            awaitingStarValidation = false;
+            showMessage('❌ Mise à jour ESP32 annulée', 'warning');
+        }
+
+        function resetESP32Data() {
+            currentESP32Data = {};
+            lastKnownData = { color: '', g_id: '', type_name: '' };
+            
+            document.getElementById('esp32Color').textContent = 'En attente...';
+            document.getElementById('esp32Color').className = 'data-value empty';
+            document.getElementById('esp32GID').textContent = '----';
+            document.getElementById('esp32GID').className = 'data-value empty';
+            document.getElementById('esp32Name').textContent = 'En attente...';
+            document.getElementById('esp32Name').className = 'data-value empty';
+            
+            document.getElementById('colorField').classList.remove('has-input', 'updating');
+            document.getElementById('gidField').classList.remove('has-input', 'updating', 'duplicate', 'duplicate-error');
+            document.getElementById('nameField').classList.remove('has-input', 'updating');
+            
+            enableActionButtons(false);
+            updateDebugInfo('Données ESP32 réinitialisées');
+        }
+
+        // === ENVOI DES DONNÉES ===
+        async function sendViaESP32ToRust() {
+            try {
+                console.log('📤 Tentative d\'envoi via ESP32 vers Rust...');
+                
+                const response = await fetch(`http://${ESP32_IP}:${ESP32_PORT}/api/esp32/validate-web-data`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        color: currentESP32Data.color,
+                        g_id: currentESP32Data.g_id,
+                        type_name: currentESP32Data.type_name
+                    }),
+                    mode: 'cors'
+                });
+                
+                if (response.ok) {
+                    console.log('✅ Envoi via ESP32 vers Rust réussi');
+                    return true;
+                }
+                
+            } catch (error) {
+                console.error('❌ Erreur envoi via ESP32:', error);
+            }
+            
+            return false;
+        }
+
+        async function sendDirectlyToRust() {
+            try {
+                console.log('📤 Tentative d\'envoi direct vers serveur Rust...');
+                
+                const response = await fetch(`http://${RUST_SERVER_IP}:${RUST_SERVER_PORT}/api/esp32/update-mapping`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        color: currentESP32Data.color,
+                        g_id: currentESP32Data.g_id,
+                        type_name: currentESP32Data.type_name,
+                        source: 'ESP32-Web',
+                        verified_unique: true
+                    }),
+                    mode: 'cors'
+                });
+                
+                if (response.ok) {
+                    console.log('✅ Envoi direct vers Rust réussi');
+                    return true;
+                }
+                
+            } catch (error) {
+                console.error('❌ Erreur envoi direct Rust:', error);
+            }
+            
+            return false;
+        }
+
+        function saveLocally() {
+            console.log('💾 Sauvegarde locale des données...');
+            
+            const localData = JSON.parse(localStorage.getItem('esp32_mappings') || '[]');
+            
+            const newEntry = {
+                id: Date.now(),
+                g_id: currentESP32Data.g_id,
+                type_name: currentESP32Data.type_name,
+                color: currentESP32Data.color,
+                timestamp: new Date().toISOString(),
+                source: 'ESP32-Local'
+            };
+            
+            localData.push(newEntry);
+            localStorage.setItem('esp32_mappings', JSON.stringify(localData));
+            
+            console.log('✅ Données sauvegardées localement:', newEntry);
+        }
+
+        // === FONCTIONS UTILITAIRES ===
+        function showMessage(message, type = 'info') {
+            const messageDiv = document.getElementById('messageDiv');
+            messageDiv.textContent = message;
+            messageDiv.className = `message ${type}`;
+            messageDiv.style.display = 'block';
+            
+            setTimeout(() => {
+                messageDiv.style.display = 'none';
+            }, 5000);
+        }
+
+        function showESP32LiveIndicator(message) {
+            const indicator = document.getElementById('esp32LiveIndicator');
+            indicator.textContent = message;
+            indicator.classList.add('show');
+            
+            setTimeout(() => {
+                indicator.classList.remove('show');
+            }, 3000);
+        }
+
+        function refreshESP32Status() {
+            if (!isAuthenticated) {
+                showMessage('⚠️ Veuillez vous connecter d\'abord', 'warning');
+                return;
+            }
+            
+            if (esp32Connected) {
+                loadESP32CurrentData();
+                showMessage('🔄 Statut ESP32 actualisé', 'info');
+            } else {
+                showMessage('⚠️ ESP32 non connecté', 'warning');
+            }
+        }
+
+        // === FONCTIONS DE TEST ===
+        function simulateRealTimeInput() {
+            if (!isAuthenticated) return;
+            
+            console.log('🧪 Simulation saisie temps réel...');
+            
+            const testGID = generateUniqueTestGID();
+            
+            setTimeout(() => updateColorFieldRealTime('rouge'), 500);
+            setTimeout(() => updateGIDFieldRealTime(testGID), 1500);
+            setTimeout(() => updateNameFieldRealTime('TestObj'), 2500);
+            setTimeout(() => {
+                currentESP32Data = {
+                    color: 'rouge',
+                    g_id: testGID,
+                    type_name: 'TestObj'
+                };
+                validateESP32DataWithUnicity(currentESP32Data);
+            }, 3500);
+            
+            showMessage('🧪 Simulation de saisie temps réel démarrée', 'info');
+        }
+
+        function generateUniqueTestGID() {
+            let testGID;
+            let attempts = 0;
+            do {
+                testGID = String(2000 + Math.floor(Math.random() * 1000)).padStart(4, '0');
+                attempts++;
+            } while (isGIDDuplicate(testGID) && attempts < 100);
+            
+            return testGID;
+        }
+
+        function testDuplicateGID() {
+            if (!isAuthenticated) return;
+            
+            console.log('🧪 Test G_ID duplicate...');
+            
+            const duplicateGID = '1001';
+            
+            setTimeout(() => updateColorFieldRealTime('bleu'), 500);
+            setTimeout(() => updateGIDFieldRealTime(duplicateGID), 1500);
+            setTimeout(() => updateNameFieldRealTime('Duplicate'), 2500);
+            setTimeout(() => {
+                currentESP32Data = {
+                    color: 'bleu',
+                    g_id: duplicateGID,
+                    type_name: 'Duplicate'
+                };
+                validateESP32DataWithUnicity(currentESP32Data);
+            }, 3500);
+            
+            showMessage('🧪 Test G_ID duplicate démarré - G_ID 1001 existe déjà!', 'warning');
+        }
+
+        // Nettoyage lors de la fermeture de la page
+        window.addEventListener('beforeunload', () => {
+            if (window.esp32MonitorInterval) {
+                clearInterval(window.esp32MonitorInterval);
+            }
+        });
+
+        // Gestion de la visibilité de la page pour économiser les ressources
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                esp32MonitoringActive = false;
+            } else if (isAuthenticated && esp32Connected) {
+                esp32MonitoringActive = true;
+            }
+        });
+
+        // Gestion des raccourcis clavier
+        document.addEventListener('keydown', (event) => {
+            // ESC pour déconnexion rapide si authentifié
+            if (event.key === 'Escape' && isAuthenticated) {
+                logout();
+            }
+            
+            // Entrée sur la page de login
+            if (event.key === 'Enter' && !isAuthenticated) {
+                const activeElement = document.activeElement;
+                if (activeElement.id === 'username' || activeElement.id === 'password') {
+                    document.getElementById('loginForm').dispatchEvent(new Event('submit'));
+                }
+            }
+        });
+
+        // Protection contre les tentatives de contournement
+        setInterval(() => {
+            if (!isAuthenticated) {
+                // S'assurer que la page principale est cachée
+                document.getElementById('mainContainer').classList.remove('authenticated');
+                document.getElementById('loginContainer').style.display = 'flex';
+                
+                // Arrêter toute surveillance ESP32
+                if (window.esp32MonitorInterval) {
+                    clearInterval(window.esp32MonitorInterval);
+                    esp32MonitoringActive = false;
+                }
+            }
+        }, 2000);
+
+        // Fonction de validation des credentials côté client
+        function validateCredentials(username, password) {
+            if (!username || !password) {
+                return { valid: false, message: 'Tous les champs sont requis' };
+            }
+            
+            if (username.length < 3) {
+                return { valid: false, message: 'Le nom d\'utilisateur doit contenir au moins 3 caractères' };
+            }
+            
+            if (password.length < 6) {
+                return { valid: false, message: 'Le mot de passe doit contenir au moins 6 caractères' };
+            }
+            
+            return { valid: true, message: 'Credentials valides' };
+        }
+
+        // Fonction pour nettoyer la session lors de la fermeture
+        window.addEventListener('beforeunload', () => {
+            if (window.esp32MonitorInterval) {
+                clearInterval(window.esp32MonitorInterval);
+            }
+        });
+
+        // Gestion des erreurs globales
+        window.addEventListener('error', (event) => {
+            console.error('Erreur JavaScript:', event.error);
+            if (isAuthenticated) {
+                showMessage('Une erreur inattendue s\'est produite. Veuillez actualiser la page.', 'error');
+            }
+        });
+
+        // Auto-logout après inactivité
+        let inactivityTimer;
+        const INACTIVITY_TIMEOUT = 30 * 60 * 1000; // 30 minutes
+
+        function resetInactivityTimer() {
+            if (inactivityTimer) {
+                clearTimeout(inactivityTimer);
+            }
+            
+            if (isAuthenticated) {
+                inactivityTimer = setTimeout(() => {
+                    showMessage('Session expirée par inactivité. Déconnexion automatique.', 'warning');
+                    setTimeout(logout, 2000);
+                }, INACTIVITY_TIMEOUT);
+            }
+        }
+
+        // Écouter l'activité utilisateur
+        ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'].forEach(event => {
+            document.addEventListener(event, resetInactivityTimer, true);
+        });
+
+        // Fonctions utilitaires additionnelles
+        function formatTimestamp(timestamp) {
+            return new Date(timestamp).toLocaleString('fr-FR', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+        }
+
+        function generateSessionId() {
+            return Date.now().toString(36) + Math.random().toString(36).substr(2);
+        }
+
+        // Fonction de diagnostic système
+        function runSystemDiagnostic() {
+            console.log('🔧 Diagnostic système:');
+            console.log('- Authentifié:', isAuthenticated);
+            console.log('- ESP32 connecté:', esp32Connected);
+            console.log('- ESP32 IP:', ESP32_IP);
+            console.log('- Surveillance active:', esp32MonitoringActive);
+            console.log('- G_IDs historiques:', historicalGIDs.size);
+            console.log('- Session stockée:', !!sessionStorage.getItem('history_authenticated'));
+            
+            if (isAuthenticated) {
+                showMessage('Diagnostic système affiché dans la console', 'info');
+            }
+        }
+
+        // Exposer quelques fonctions utiles globalement pour le debug
+        window.debugESP32 = {
+            diagnostic: runSystemDiagnostic,
+            forceLogout: logout,
+            resetData: resetESP32Data,
+            showGIDs: () => console.log('G_IDs:', Array.from(historicalGIDs)),
+            clearSession: () => {
+                sessionStorage.clear();
+                localStorage.clear();
+                location.reload();
+            }
+        };
+
+        console.log('✅ Page History avec authentification initialisée');
+        console.log('📝 Credentials par défaut: admin / admin123');
+        console.log('🔧 Debug disponible via: window.debugESP32');
+
+        // Initialiser le timer d'inactivité si l'utilisateur est déjà authentifié
+        if (isAuthenticated) {
+            resetInactivityTimer();
+        }
+        // Variables pour l'historique
+let RUST_SERVER_URL = window.location.origin;
+
+// Classe pour gérer l'historique des détections
+class DetectionHistoryManager {
+    constructor() {
+        this.isAuthenticated = false;
+        this.init();
+    }
+    
+    init() {
+        // Attendre que l'utilisateur soit authentifié
+        const checkAuth = () => {
+            if (isAuthenticated) {
+                this.isAuthenticated = true;
+                this.initEventListeners();
+                this.loadDetectionHistory();
+                clearInterval(authChecker);
+            }
+        };
+        const authChecker = setInterval(checkAuth, 1000);
+    }
+    
+    initEventListeners() {
+        document.getElementById('refreshHistoryDB')?.addEventListener('click', () => this.loadDetectionHistory());
+        document.getElementById('exportHistoryData')?.addEventListener('click', () => this.exportHistoryData());
+        document.getElementById('clearHistoryData')?.addEventListener('click', () => this.clearHistoryData());
+    }
+    
+    async loadDetectionHistory() {
+        if (!this.isAuthenticated) return;
+        
+        try {
+            console.log('Chargement historique détections...');
+            
+            const response = await fetch(`${RUST_SERVER_URL}/api/detections?limit=100`);
+            if (!response.ok) {
+                throw new Error(`Erreur serveur: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            console.log('Données historique reçues:', data);
+            
+            const detections = data.data || data.detections || [];
+            this.displayHistoryDetections(detections);
+            
+            const countElement = document.getElementById('historyDetectionCount');
+            if (countElement) {
+                const total = detections.length;
+                countElement.textContent = `Total: ${total} détection${total > 1 ? 's' : ''}`;
+            }
+            
+        } catch (error) {
+            console.error('Erreur chargement historique:', error);
+            this.showHistoryEmptyTable('Erreur de chargement');
+        }
+    }
+    
+    displayHistoryDetections(detections) {
+    const tbody = document.getElementById('historyDetectionsBody');
+    if (!tbody) return;
+
+    if (!detections || detections.length === 0) {
+        this.showHistoryEmptyTable();
+        return;
+    }
+
+    tbody.innerHTML = '';
+    
+    // Grouper les détections par date
+    const detectionsByDate = this.groupDetectionsByDate(detections);
+    
+    // Trier les dates (plus récente en premier)
+    const sortedDates = Object.keys(detectionsByDate).sort((a, b) => new Date(b) - new Date(a));
+    
+    sortedDates.forEach(dateStr => {
+        const dayDetections = detectionsByDate[dateStr];
+        
+        // Ligne d'en-tête de date
+        const dateRow = document.createElement('tr');
+        dateRow.style.background = 'linear-gradient(135deg, #667eea, #764ba2)';
+        dateRow.style.color = 'white';
+        dateRow.innerHTML = `
+            <td colspan="7" style="padding: 15px 20px; text-align: center; font-weight: bold; font-size: 16px;">
+                ${this.formatDateHeader(dateStr)} - ${dayDetections.length} détection${dayDetections.length > 1 ? 's' : ''}
+            </td>
+        `;
+        tbody.appendChild(dateRow);
+        
+        // Trier les détections du jour par heure (plus récente en premier)
+        dayDetections.sort((a, b) => new Date(b.date_time || b.timestamp) - new Date(a.date_time || a.timestamp));
+        
+        // Afficher chaque détection du jour
+        dayDetections.forEach(detection => {
+            const row = document.createElement('tr');
+            const timestamp = new Date(detection.date_time || detection.timestamp);
+            const timeOnly = timestamp.toLocaleTimeString('fr-FR', { 
+                hour: '2-digit', 
+                minute: '2-digit', 
+                second: '2-digit' 
+            });
+            const confidence = detection.confidence ? Math.round(detection.confidence * 100) : 'N/A';
+            
+            row.style.borderBottom = '1px solid #dee2e6';
+            row.style.borderLeft = '4px solid ' + this.getColorHex(detection.color);
+            row.onmouseover = () => row.style.background = 'linear-gradient(135deg, #f8f9fa, #e9ecef)';
+            row.onmouseout = () => row.style.background = '';
+            
+            row.innerHTML = `
+                <td style="padding: 12px 20px; vertical-align: middle; font-size: 14px;">
+                    <strong>#${detection.id}</strong>
+                </td>
+                <td style="padding: 12px 20px; vertical-align: middle; font-size: 14px;">
+                    <strong>#${detection.g_id || 'N/A'}</strong>
+                </td>
+                <td style="padding: 12px 20px; vertical-align: middle; font-size: 14px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div style="width: 12px; height: 12px; border-radius: 50%; background: ${this.getColorHex(detection.color)}; border: 2px solid white; box-shadow: 0 0 0 1px rgba(0,0,0,0.2);"></div>
+                        <span>${this.getCardInfo(detection.color)}</span>
+                    </div>
+                </td>
+                <td style="padding: 12px 20px; vertical-align: middle; font-size: 14px;">
+                    <span style="padding: 3px 6px; background: ${this.getColorHex(detection.color)}; color: white; border-radius: 8px; font-size: 11px; font-weight: bold;">
+                        ${detection.color}
+                    </span>
+                </td>
+                <td style="padding: 12px 20px; vertical-align: middle; font-size: 14px;">
+                    <span style="padding: 3px 6px; border-radius: 8px; font-size: 11px; font-weight: bold; background: ${confidence !== 'N/A' && confidence >= 80 ? '#28a745' : confidence !== 'N/A' && confidence >= 60 ? '#ffc107' : '#dc3545'}; color: white;">
+                        ${confidence}${confidence !== 'N/A' ? '%' : ''}
+                    </span>
+                </td>
+                <td style="padding: 12px 20px; vertical-align: middle; font-size: 14px;">
+                    <div style="font-weight: bold; color: #2c3e50;">${timeOnly}</div>
+                </td>
+                <td style="padding: 12px 20px; vertical-align: middle; font-size: 14px;">
+                    ${detection.image_path ? 
+                        `<img src="${detection.image_path}" alt="Capture" 
+                            style="width: 40px; height: 40px; object-fit: cover; border-radius: 6px; border: 2px solid #dee2e6; cursor: pointer;" 
+                            onerror="this.style.display='none'; this.nextSibling.style.display='inline';"
+                            onclick="this.style.transform=this.style.transform?'':'scale(2.5)'; this.style.zIndex=this.style.zIndex?'':'10000'; this.style.position=this.style.position?'':'fixed'; this.style.top='50%'; this.style.left='50%'; this.style.marginTop='-50px'; this.style.marginLeft='-50px';" />
+                        <span style="color: #999; font-size: 12px; display: none;">Image indisponible</span>` : 
+                        '<span style="color: #999; font-size: 12px;">Aucune</span>'
+    }
+                </td>
+            `;
+            
+            tbody.appendChild(row);
+        });
+        
+        // Ligne de séparation entre les jours
+        if (sortedDates.indexOf(dateStr) < sortedDates.length - 1) {
+            const separatorRow = document.createElement('tr');
+            separatorRow.innerHTML = `
+                <td colspan="7" style="padding: 8px; background: #f8f9fa; border-top: 2px solid #e9ecef;"></td>
+            `;
+            tbody.appendChild(separatorRow);
+        }
+    });
+}
+
+groupDetectionsByDate(detections) {
+    const grouped = {};
+    
+    detections.forEach(detection => {
+        const date = new Date(detection.date_time || detection.timestamp);
+        const dateKey = date.toISOString().split('T')[0]; // YYYY-MM-DD
+        
+        if (!grouped[dateKey]) {
+            grouped[dateKey] = [];
+        }
+        grouped[dateKey].push(detection);
+    });
+    
+    return grouped;
+}
+
+formatDateHeader(dateStr) {
+    const date = new Date(dateStr + 'T00:00:00');
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    
+    const isToday = date.toDateString() === today.toDateString();
+    const isYesterday = date.toDateString() === yesterday.toDateString();
+    
+    const dayNames = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+    const monthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 
+                       'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+    
+    const dayName = dayNames[date.getDay()];
+    const day = date.getDate();
+    const month = monthNames[date.getMonth()];
+    const year = date.getFullYear();
+    
+    if (isToday) {
+        return `Aujourd'hui - ${dayName} ${day} ${month} ${year}`;
+    } else if (isYesterday) {
+        return `Hier - ${dayName} ${day} ${month} ${year}`;
+    } else {
+        return `${dayName} ${day} ${month} ${year}`;
+    }
+}
+    
+    showHistoryEmptyTable(message = 'Aucune détection dans l\'historique') {
+        const tbody = document.getElementById('historyDetectionsBody');
+        if (tbody) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="7" style="text-align: center; padding: 60px; color: #7f8c8d;">
+                        <div style="font-size: 72px; margin-bottom: 25px; opacity: 0.3;">📊</div>
+                        <div><strong>${message}</strong></div>
+                        <small>Les détections apparaîtront ici</small>
+                    </td>
+                </tr>
+            `;
+        }
+    }
+    
+    getColorHex(colorName) {
+        const colorMap = {
+            'rouge': '#e74c3c', 'vert': '#27ae60', 'bleu': '#3498db',
+            'jaune': '#f39c12', 'noir': '#2c3e50'
+        };
+        return colorMap[colorName?.toLowerCase()] || '#6c757d';
+    }
+    
+    getCardInfo(colorName) {
+        const cardTypes = {
+            'rouge': 'Carte Microchip', 'vert': 'Carte Personnalisée', 
+            'bleu': 'STM32', 'jaune': 'Prototype', 'noir': 'Production'
+        };
+        return cardTypes[colorName?.toLowerCase()] || 'Carte détectée';
+    }
+    
+    async exportHistoryData() {
+        if (!this.isAuthenticated) return;
+        
+        try {
+            const response = await fetch(`${RUST_SERVER_URL}/api/history/export`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ format: 'csv' })
+            });
+
+            if (response.ok) {
+                const blob = await response.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `detections_history_${new Date().toISOString().split('T')[0]}.csv`;
+                a.click();
+                URL.revokeObjectURL(url);
+                
+                showMessage('Export réussi', 'success');
+            }
+        } catch (error) {
+            console.error('Erreur export:', error);
+            showMessage('Erreur export', 'error');
+        }
+    }
+    
+    async clearHistoryData() {
+        if (!this.isAuthenticated) return;
+        
+        if (!confirm('Supprimer tout l\'historique des détections ? Action irréversible.')) return;
+
+        try {
+            const response = await fetch(`${RUST_SERVER_URL}/api/history?confirm=true`, {
+                method: 'DELETE'
+            });
+
+            if (response.ok) {
+                this.showHistoryEmptyTable('Historique supprimé');
+                showMessage('Historique supprimé avec succès', 'success');
+                document.getElementById('historyDetectionCount').textContent = 'Total: 0 détection';
+            }
+        } catch (error) {
+            console.error('Erreur suppression:', error);
+            showMessage('Erreur suppression', 'error');
+        }
+    }
+}
+
+// Initialiser le gestionnaire d'historique
+window.historyManager = new DetectionHistoryManager();
+    </script>
 </body>
 </html>

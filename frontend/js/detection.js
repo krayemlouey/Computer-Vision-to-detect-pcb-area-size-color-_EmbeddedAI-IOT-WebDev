@@ -1,11 +1,15 @@
 class ColorDetectionSystem {
     constructor() {
+        // Configuration de l'URL de base pour l'API
+        this.API_BASE_URL = window.location.origin; // Utilise automatiquement le bon port
+        
         this.video = document.getElementById('video');
         this.canvas = document.getElementById('canvas');
-        this.ctx = this.canvas.getContext('2d');
+        this.ctx = this.canvas?.getContext('2d');
         this.stream = null;
         this.isDetecting = false;
         this.detectionInterval = null;
+        this.historyRefreshInterval = null;
         
         // Compteurs de cadence
         this.cadenceCounters = {
@@ -14,7 +18,7 @@ class ColorDetectionSystem {
             blue: { count: 0, startTime: Date.now() }
         };
         
-        // Configuration des couleurs HSV
+        // Configuration des couleurs HSV (optimisée)
         this.colors = {
             red: {
                 ranges: [[0, 120, 70, 10, 255, 255], [170, 120, 70, 180, 255, 255]],
@@ -33,55 +37,177 @@ class ColorDetectionSystem {
             }
         };
         
+        // Dernières détections pour éviter les doublons
+        this.lastDetectionTimes = {
+            red: 0,
+            green: 0,
+            blue: 0
+        };
+        this.detectionCooldown = 3000; // 3 secondes entre détections
+        
         this.initEventListeners();
         this.loadDetections();
         this.updateCadenceDisplay();
+        this.startHistoryAutoRefresh();
     }
 
     initEventListeners() {
-        document.getElementById('startCamera').addEventListener('click', () => this.startCamera());
-        document.getElementById('stopCamera').addEventListener('click', () => this.stopCamera());
-        document.getElementById('resetCadence').addEventListener('click', () => this.resetCadence());
-        document.getElementById('refreshDB').addEventListener('click', () => this.loadDetections());
+        const startButton = document.getElementById('startCamera');
+        const stopButton = document.getElementById('stopCamera');
+        const resetButton = document.getElementById('resetCadence');
+        const refreshButton = document.getElementById('refreshDB');
+
+        if (startButton) {
+            startButton.addEventListener('click', () => this.startCamera());
+        }
+        if (stopButton) {
+            stopButton.addEventListener('click', () => this.stopCamera());
+        }
+        if (resetButton) {
+            resetButton.addEventListener('click', () => this.resetCadence());
+        }
+        if (refreshButton) {
+            refreshButton.addEventListener('click', () => this.loadDetections());
+        }
+        
+        // Gestion de la fermeture de la page
+        window.addEventListener('beforeunload', () => {
+            this.cleanup();
+        });
     }
 
     async startCamera() {
         try {
-            this.stream = await navigator.mediaDevices.getUserMedia({ 
-                video: { width: 640, height: 480 } 
-            });
-            this.video.srcObject = this.stream;
+            console.log('Démarrage de la caméra...');
             
-            this.video.onloadedmetadata = () => {
-                this.canvas.width = this.video.videoWidth;
-                this.canvas.height = this.video.videoHeight;
-                this.startDetection();
+            // Arrêter la caméra existante si elle existe
+            this.stopCamera();
+            
+            // Configuration des contraintes média optimisée
+            const constraints = {
+                video: {
+                    width: { ideal: 1280, min: 640 },
+                    height: { ideal: 720, min: 480 },
+                    facingMode: 'environment', // Caméra arrière si disponible
+                    frameRate: { ideal: 30 }
+                },
+                audio: false
             };
             
-            this.updateStatus('Caméra démarrée - Détection active');
+            // Demander l'accès à la caméra
+            this.stream = await navigator.mediaDevices.getUserMedia(constraints);
+            console.log('Stream caméra obtenu');
+            
+            if (this.video) {
+                this.video.srcObject = this.stream;
+                
+                // Attendre que les métadonnées soient chargées
+                await new Promise((resolve, reject) => {
+                    this.video.onloadedmetadata = () => {
+                        console.log(`Caméra initialisée: ${this.video.videoWidth}x${this.video.videoHeight}`);
+                        
+                        // Configurer le canvas
+                        if (this.canvas) {
+                            this.canvas.width = this.video.videoWidth || 1280;
+                            this.canvas.height = this.video.videoHeight || 720;
+                            console.log(`Canvas configuré: ${this.canvas.width}x${this.canvas.height}`);
+                        }
+                        
+                        resolve();
+                    };
+                    
+                    this.video.onerror = (e) => {
+                        console.error('Erreur vidéo:', e);
+                        reject(e);
+                    };
+                    
+                    // Timeout de sécurité
+                    setTimeout(() => {
+                        if (this.video.readyState < 1) {
+                            reject(new Error('Timeout chargement vidéo'));
+                        }
+                    }, 10000);
+                });
+                
+                // Démarrer la lecture vidéo
+                await this.video.play();
+                console.log('Lecture vidéo démarrée');
+                
+                // Démarrer la détection après un court délai
+                setTimeout(() => {
+                    this.startDetection();
+                }, 1000);
+            }
+            
+            this.updateStatus('Caméra démarrée - Détection active', 'success');
+            this.updateButtonStates(true);
+            
         } catch (error) {
             console.error('Erreur accès caméra:', error);
-            this.updateStatus('Erreur: Impossible d\'accéder à la caméra');
+            let errorMessage = 'Erreur: Impossible d\'accéder à la caméra';
+            
+            if (error.name === 'NotAllowedError') {
+                errorMessage = 'Accès à la caméra refusé. Veuillez autoriser l\'accès dans les paramètres du navigateur.';
+            } else if (error.name === 'NotFoundError') {
+                errorMessage = 'Aucune caméra trouvée sur cet appareil.';
+            } else if (error.name === 'NotReadableError') {
+                errorMessage = 'Caméra déjà utilisée par une autre application.';
+            } else if (error.message) {
+                errorMessage = `Erreur: ${error.message}`;
+            }
+            
+            this.updateStatus(errorMessage, 'error');
         }
     }
 
     stopCamera() {
+        console.log('Arrêt de la caméra...');
+        
         if (this.stream) {
-            this.stream.getTracks().forEach(track => track.stop());
+            this.stream.getTracks().forEach(track => {
+                track.stop();
+                console.log('Track arrêté:', track.kind);
+            });
             this.stream = null;
         }
+        
+        if (this.video) {
+            this.video.srcObject = null;
+            this.video.pause();
+        }
+        
         this.stopDetection();
-        this.updateStatus('Caméra arrêtée');
+        this.updateStatus('Caméra arrêtée', 'info');
+        this.updateButtonStates(false);
     }
 
     startDetection() {
+        if (this.isDetecting) {
+            console.log('Détection déjà en cours');
+            return;
+        }
+        
+        if (!this.video || !this.canvas || !this.ctx) {
+            console.error('Éléments vidéo/canvas manquants');
+            return;
+        }
+        
+        if (this.video.readyState < 2) {
+            console.log('Attente chargement vidéo...');
+            setTimeout(() => this.startDetection(), 500);
+            return;
+        }
+        
+        console.log('Démarrage de la détection');
         this.isDetecting = true;
+        
         this.detectionInterval = setInterval(() => {
             this.processFrame();
-        }, 100); // Détection toutes les 100ms
+        }, 150); // Détection toutes les 150ms pour de meilleures performances
     }
 
     stopDetection() {
+        console.log('Arrêt de la détection');
         this.isDetecting = false;
         if (this.detectionInterval) {
             clearInterval(this.detectionInterval);
@@ -90,18 +216,34 @@ class ColorDetectionSystem {
     }
 
     processFrame() {
-        if (!this.video.videoWidth || !this.video.videoHeight) return;
+        if (!this.video?.videoWidth || !this.video?.videoHeight || !this.ctx) {
+            return;
+        }
+        
+        if (this.video.paused || this.video.ended) {
+            return;
+        }
 
-        // Capturer le frame
-        this.ctx.drawImage(this.video, 0, 0, this.canvas.width, this.canvas.height);
-        const imageData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
-        const hsv = this.rgbToHsv(imageData);
+        try {
+            // Capturer le frame
+            this.ctx.drawImage(this.video, 0, 0, this.canvas.width, this.canvas.height);
+            const imageData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
+            
+            // Convertir en HSV et détecter les couleurs
+            const hsv = this.rgbToHsv(imageData);
 
-        // Détecter chaque couleur
-        for (const [colorName, config] of Object.entries(this.colors)) {
-            if (this.detectColor(hsv, config.ranges)) {
-                this.onColorDetected(colorName, config);
+            // Détecter chaque couleur
+            for (const [colorName, config] of Object.entries(this.colors)) {
+                if (this.detectColor(hsv, config.ranges)) {
+                    const now = Date.now();
+                    if (now - this.lastDetectionTimes[colorName] > this.detectionCooldown) {
+                        this.onColorDetected(colorName, config);
+                        this.lastDetectionTimes[colorName] = now;
+                    }
+                }
             }
+        } catch (error) {
+            console.error('Erreur traitement frame:', error);
         }
     }
 
@@ -145,7 +287,7 @@ class ColorDetectionSystem {
 
     detectColor(hsvData, ranges) {
         let pixelCount = 0;
-        const threshold = 1000; // Nombre minimum de pixels pour détecter
+        const threshold = 2000; // Seuil ajusté pour plus de précision
         
         for (let i = 0; i < hsvData.length; i += 4) {
             const h = hsvData[i];
@@ -171,15 +313,17 @@ class ColorDetectionSystem {
     }
 
     async onColorDetected(colorName, config) {
+        console.log(`Couleur détectée: ${colorName} (${config.label})`);
+        
         // Mettre à jour la cadence
         this.updateCadence(colorName);
         
-        // Capturer l'image
-        const imageData = this.canvas.toDataURL('image/jpeg', 0.8);
+        // Capturer l'image actuelle
+        const imageData = this.canvas.toDataURL('image/jpeg', 0.85);
         
         // Envoyer au backend
         try {
-            const response = await fetch('/api/detections', {
+            const response = await fetch(`${this.API_BASE_URL}/api/detections`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -194,12 +338,59 @@ class ColorDetectionSystem {
 
             if (response.ok) {
                 const detection = await response.json();
+                console.log('Détection sauvegardée:', detection.id);
                 this.displayLatestCapture(detection);
-                this.loadDetections(); // Actualiser la table
+                this.showDetectionAlert(detection);
+                
+                // Recharger les détections après un court délai
+                setTimeout(() => {
+                    this.loadDetections();
+                }, 500);
+            } else {
+                console.error('Erreur sauvegarde détection:', response.status);
+                this.updateStatus(`Erreur sauvegarde (${response.status})`, 'error');
             }
         } catch (error) {
             console.error('Erreur sauvegarde détection:', error);
+            this.updateStatus('Erreur de connexion au serveur', 'error');
         }
+    }
+
+    showDetectionAlert(detection) {
+        // Créer une notification visuelle
+        const alert = document.createElement('div');
+        alert.className = 'detection-alert';
+        alert.style.cssText = `
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            z-index: 10000;
+            animation: slideIn 0.3s ease-out;
+            font-weight: bold;
+        `;
+        
+        alert.innerHTML = `
+            <strong>Détection!</strong><br>
+            ${detection.type_name} (${detection.color})<br>
+            ID: ${detection.id}
+        `;
+        
+        document.body.appendChild(alert);
+        
+        // Supprimer après 3 secondes
+        setTimeout(() => {
+            alert.style.animation = 'slideOut 0.3s ease-in';
+            setTimeout(() => {
+                if (alert.parentNode) {
+                    alert.parentNode.removeChild(alert);
+                }
+            }, 300);
+        }, 3000);
     }
 
     updateCadence(colorName) {
@@ -213,20 +404,21 @@ class ColorDetectionSystem {
             const cadence = counter.count / elapsedSeconds;
             
             // Mettre à jour l'affichage
-            document.getElementById(`cadence-${colorName}`).textContent = `${cadence.toFixed(1)} /s`;
+            const cadenceElement = document.getElementById(`cadence-${colorName}`);
+            if (cadenceElement) {
+                cadenceElement.textContent = `${cadence.toFixed(1)} /s`;
+                cadenceElement.style.color = cadence > 0.5 ? '#4CAF50' : '#666';
+            }
             
             // Envoyer au backend
-            this.sendCadenceUpdate(this.colors[colorName].gId, cadence);
-            
-            // Réinitialiser le compteur
-            counter.count = 0;
-            counter.startTime = now;
+            this.sendCadenceUpdate(colorName, cadence);
         }
     }
 
-    async sendCadenceUpdate(gId, cadence) {
+    async sendCadenceUpdate(colorName, cadence) {
         try {
-            await fetch('/api/cadence', {
+            const gId = this.colors[colorName].gId;
+            await fetch(`${this.API_BASE_URL}/api/cadence`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -242,47 +434,85 @@ class ColorDetectionSystem {
     }
 
     resetCadence() {
-        for (const colorName in this.cadenceCounters) {
-            this.cadenceCounters[colorName] = { count: 0, startTime: Date.now() };
-            document.getElementById(`cadence-${colorName}`).textContent = '0.0 /s';
+        console.log('Réinitialisation des cadences');
+        
+        this.cadenceCounters = {
+            red: { count: 0, startTime: Date.now() },
+            green: { count: 0, startTime: Date.now() },
+            blue: { count: 0, startTime: Date.now() }
+        };
+        
+        // Mettre à jour l'affichage
+        ['red', 'green', 'blue'].forEach(color => {
+            const element = document.getElementById(`cadence-${color}`);
+            if (element) {
+                element.textContent = '0.0 /s';
+                element.style.color = '#666';
+            }
+        });
+        
+        this.updateStatus('Cadences réinitialisées', 'success');
+    }
+
+    updateStatus(message, type) {
+        const statusElement = document.getElementById('detectionStatus');
+        if (statusElement) {
+            statusElement.textContent = message;
+            statusElement.className = `detection-status ${type}`;
+        }
+    }
+
+    updateButtonStates(cameraActive) {
+        const startButton = document.getElementById('startCamera');
+        const stopButton = document.getElementById('stopCamera');
+        
+        if (startButton) {
+            startButton.disabled = cameraActive;
+        }
+        if (stopButton) {
+            stopButton.disabled = !cameraActive;
         }
     }
 
     updateCadenceDisplay() {
-        setInterval(() => {
-            for (const colorName in this.cadenceCounters) {
-                const counter = this.cadenceCounters[colorName];
-                const elapsedSeconds = (Date.now() - counter.startTime) / 1000;
-                
-                if (elapsedSeconds >= 5 && counter.count === 0) {
-                    document.getElementById(`cadence-${colorName}`).textContent = '0.0 /s';
-                }
+        // Initialiser l'affichage des cadences
+        ['red', 'green', 'blue'].forEach(color => {
+            const element = document.getElementById(`cadence-${color}`);
+            if (element) {
+                element.textContent = '0.0 /s';
+                element.style.color = '#666';
             }
-        }, 1000);
+        });
     }
 
     displayLatestCapture(detection) {
-        const captureDiv = document.getElementById('latestCapture');
-        captureDiv.innerHTML = `
-            <div class="capture-preview">
-                <img src="${detection.image_path}" alt="Capture ${detection.id}">
-                <div class="capture-info">
-                    <strong>ID:</strong> ${detection.id}<br>
-                    <strong>Type:</strong> ${detection.type_name}<br>
-                    <strong>Couleur:</strong> ${detection.color}<br>
-                    <strong>Heure:</strong> ${new Date(detection.date_time).toLocaleString()}
+        const captureContainer = document.getElementById('latestCapture');
+        if (captureContainer) {
+            captureContainer.innerHTML = `
+                <div class="capture-preview">
+                    <img src="${detection.image_path}" alt="Capture ${detection.id}" style="max-width: 100%; border-radius: 5px;">
+                    <div class="capture-info">
+                        <strong>${detection.type_name}</strong>
+                        <span>ID: ${detection.id}</span>
+                        <span>${new Date(detection.date_time).toLocaleString()}</span>
+                    </div>
                 </div>
-            </div>
-        `;
+            `;
+        }
     }
 
     async loadDetections() {
         try {
-            const response = await fetch('/api/history');
+            const response = await fetch(`${this.API_BASE_URL}/api/history`);
             if (response.ok) {
                 const data = await response.json();
-                this.displayDetections(data.detections.slice(0, 20)); // 20 dernières détections
-                document.getElementById('totalDetections').textContent = data.detections.length;
+                this.displayDetections(data.detections);
+                
+                // Mettre à jour le compteur total
+                const totalElement = document.getElementById('totalDetections');
+                if (totalElement) {
+                    totalElement.textContent = data.detections.length;
+                }
             }
         } catch (error) {
             console.error('Erreur chargement détections:', error);
@@ -291,35 +521,71 @@ class ColorDetectionSystem {
 
     displayDetections(detections) {
         const tbody = document.getElementById('detectionsBody');
-        tbody.innerHTML = '';
+        if (!tbody) return;
 
-        detections.forEach(detection => {
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>${detection.id}</td>
-                <td>${detection.type_name}</td>
-                <td>
-                    <span class="color-indicator ${detection.color}"></span>
-                    ${detection.color}
-                </td>
-                <td>${new Date(detection.date_time).toLocaleString()}</td>
-                <td>
-                    <img src="${detection.image_path}" 
-                         alt="Capture ${detection.id}" 
-                         class="capture-thumb"
-                         onclick="this.style.transform = this.style.transform ? '' : 'scale(3)'; this.style.zIndex = this.style.zIndex ? '' : '1000'; this.style.position = this.style.position ? '' : 'relative';">
-                </td>
+        if (!detections || detections.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="5" style="text-align: center; padding: 20px; color: #666;">
+                        Aucune détection pour le moment
+                    </td>
+                </tr>
             `;
-            tbody.appendChild(row);
-        });
+            return;
+        }
+
+        // Prendre seulement les 10 dernières détections pour la vue de détection
+        const recentDetections = detections.slice(0, 10);
+        
+        tbody.innerHTML = recentDetections.map(detection => {
+            const date = new Date(detection.date_time);
+            return `
+                <tr>
+                    <td>${detection.id}</td>
+                    <td>${detection.type_name}</td>
+                    <td>
+                        <span class="color-indicator ${detection.color}"></span>
+                        ${detection.color}
+                    </td>
+                    <td>${date.toLocaleString()}</td>
+                    <td>
+                        <img src="${detection.image_path}" alt="Capture" style="width: 50px; height: 50px; object-fit: cover; border-radius: 3px;">
+                    </td>
+                </tr>
+            `;
+        }).join('');
     }
 
-    updateStatus(message) {
-        document.getElementById('detectionStatus').textContent = message;
+    startHistoryAutoRefresh() {
+        // Rafraîchir l'historique toutes les 30 secondes
+        this.historyRefreshInterval = setInterval(() => {
+            this.loadDetections();
+        }, 30000);
+    }
+
+    cleanup() {
+        console.log('Nettoyage des ressources...');
+        
+        this.stopCamera();
+        
+        if (this.historyRefreshInterval) {
+            clearInterval(this.historyRefreshInterval);
+        }
     }
 }
 
 // Initialiser le système au chargement de la page
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('Initialisation du système de détection');
+    
+    // Vérifier que tous les éléments nécessaires sont présents
+    const requiredElements = ['video', 'canvas'];
+    const missingElements = requiredElements.filter(id => !document.getElementById(id));
+    
+    if (missingElements.length > 0) {
+        console.error('Éléments manquants:', missingElements);
+        return;
+    }
+    
     new ColorDetectionSystem();
 });
