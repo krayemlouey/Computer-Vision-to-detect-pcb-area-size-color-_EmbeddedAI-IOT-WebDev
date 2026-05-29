@@ -88,6 +88,7 @@ def find_rust_server():
     return f"http://{local_ip}:3001/api"
 
 # Configuration système avec détection automatique
+local_ip = get_local_ip()
 RUST_API_URL = find_rust_server()
 
 print(f"[INFO] Configuration Flask:")
