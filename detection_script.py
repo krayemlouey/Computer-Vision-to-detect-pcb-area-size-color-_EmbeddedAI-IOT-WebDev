@@ -26,33 +26,31 @@ class DetectionService:
         self.camera_active = False
         self.frame_lock = threading.Lock()
         
-        # Configuration des couleurs HSV
+        # Configuration des couleurs HSV (renforcées pour faible luminosité et ombres)
         self.color_ranges = {
             'Rouge': {
-                'lower1': np.array([0, 120, 70]),
-                'upper1': np.array([10, 255, 255]),
-                'lower2': np.array([170, 120, 70]),
+                'lower1': np.array([0, 100, 70]),
+                'upper1': np.array([8, 255, 255]),
+                'lower2': np.array([172, 100, 70]),
                 'upper2': np.array([180, 255, 255])
             },
             'Vert': {
-                'lower': np.array([35, 100, 100]),
-                'upper': np.array([80, 255, 255])
+                'lower': np.array([35, 40, 40]),
+                'upper': np.array([89, 255, 255])
             },
             'Bleu': {
-                'lower': np.array([100, 150, 0]),
-                'upper': np.array([140, 255, 255])
-            },
-            'Jaune': {
-                'lower': np.array([20, 100, 100]),
-                'upper': np.array([30, 255, 255])
+                'lower': np.array([90, 40, 40]),
+                'upper': np.array([130, 255, 255])
             },
             'Noir': {
                 'lower': np.array([0, 0, 0]),
-                'upper': np.array([180, 255, 30])
+                'upper': np.array([180, 255, 55])
             }
         }
         
         # Paramètres de détection
+        self.active_colors = list(self.color_ranges.keys())
+        
         self.min_contour_area = 1500
         self.detection_stability_frames = 5
         self.tracked_objects = {}
@@ -148,6 +146,11 @@ class DetectionService:
         except Exception as e:
             logger.error(f"[ERROR] Erreur arrêt caméra: {e}")
 
+    def set_active_colors(self, colors):
+        """Met à jour la liste des couleurs actives à détecter."""
+        self.active_colors = [c.capitalize() for c in colors]
+        logger.info(f"Couleurs OpenCV actives (script): {self.active_colors}")
+
     def get_current_frame(self):
         """Retourne la frame courante de manière thread-safe"""
         with self.frame_lock:
@@ -156,53 +159,139 @@ class DetectionService:
             return None
 
     def process_frame(self, frame, save_detections=False):
-        """Traite une frame pour détecter les couleurs et optionnellement sauvegarder"""
+        """Traite une frame avec sous-échantillonnage pour de la détection ultra-rapide (Zéro latence)"""
         if frame is None:
             return {}, {}
         
         try:
-            # Conversion en HSV pour une meilleure détection des couleurs
-            hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+            h, w = frame.shape[:2]
+            proc_w = 320
+            proc_h = int(h * (proc_w / w))
+            scale_x = w / proc_w
+            scale_y = h / proc_h
             
-            # Lissage pour réduire le bruit
-            hsv = cv2.GaussianBlur(hsv, (5, 5), 0)
+            # Prétraitement sur l'image réduite pour multiplier la vitesse par 16
+            small_frame = cv2.resize(frame, (proc_w, proc_h))
+            blurred = cv2.GaussianBlur(small_frame, (9, 9), 0)
+            hsv = cv2.cvtColor(blurred, cv2.COLOR_BGR2HSV)
             
             validated_contours = {}
             tracked_centroids = {}
             
+            # Seuil d'aire équilibré pour permettre la détection sans capter trop de bruit
+            min_area_proc = 2500
+            
             for color_name, ranges in self.color_ranges.items():
-                mask = self._create_color_mask(hsv, ranges)
-                contours = self._find_contours(mask)
-                
-                if contours:
-                    # Prendre le plus grand contour
-                    largest_contour = max(contours, key=cv2.contourArea)
-                    area = cv2.contourArea(largest_contour)
+                if color_name not in self.active_colors:
+                    continue
                     
-                    if area > self.min_contour_area:
-                        # Calculer le centroïde
-                        M = cv2.moments(largest_contour)
-                        if M["m00"] != 0:
-                            cx = int(M["m10"] / M["m00"])
-                            cy = int(M["m01"] / M["m00"])
+                mask = self._create_color_mask(hsv, ranges)
+                contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                
+                # Filtrer les contours valides avec la contrainte géométrique et de proximité
+                valid_contours = []
+                for c in contours:
+                    area = cv2.contourArea(c)
+                    if area >= min_area_proc:
+                        if self._is_valid_card_shape(c, proc_w, proc_h):
+                            valid_contours.append((c, area))
+                
+                if valid_contours:
+                    # Prendre le plus grand contour valide
+                    largest_contour, area = max(valid_contours, key=lambda x: x[1])
+                    
+                    # Calculer le centroïde
+                    M = cv2.moments(largest_contour)
+                    if M["m00"] != 0:
+                        cx = int(M["m10"] / M["m00"])
+                        cy = int(M["m01"] / M["m00"])
+                        
+                        # Remettre à l'échelle pour l'image haute résolution d'origine
+                        original_contour = largest_contour.copy()
+                        original_contour[:, :, 0] = np.round(original_contour[:, :, 0] * scale_x).astype(int)
+                        original_contour[:, :, 1] = np.round(original_contour[:, :, 1] * scale_y).astype(int)
+                        
+                        orig_cx = int(cx * scale_x)
+                        orig_cy = int(cy * scale_y)
+                        
+                        # Validation de la stabilité
+                        if self._validate_detection_stability(color_name, (orig_cx, orig_cy)):
+                            validated_contours[color_name] = (original_contour, (orig_cx, orig_cy))
+                            tracked_centroids[color_name] = (orig_cx, orig_cy)
                             
-                            # Validation de la stabilité
-                            if self._validate_detection_stability(color_name, (cx, cy)):
-                                validated_contours[color_name] = (largest_contour, (cx, cy))
-                                tracked_centroids[color_name] = (cx, cy)
-                                
-                                # Sauvegarder l'image si demandé
-                                if save_detections:
-                                    saved_filename = self.save_detection_image(frame, color_name, largest_contour)
-                                    if saved_filename:
-                                        # Émettre un événement de nouvelle détection
-                                        self.emit_detection_event(color_name, (cx, cy), area, saved_filename)
+                            # Sauvegarder l'image si demandé
+                            if save_detections:
+                                saved_filename = self.save_detection_image(frame, color_name, original_contour)
+                                if saved_filename:
+                                    # Émettre un événement de nouvelle détection
+                                    self.emit_detection_event(color_name, (orig_cx, orig_cy), area * scale_x * scale_y, saved_filename)
+            # Priorité : si une autre couleur est détectée, le Noir est ignoré
+            if 'Noir' in validated_contours and len(validated_contours) > 1:
+                del validated_contours['Noir']
+                if 'Noir' in tracked_centroids:
+                    del tracked_centroids['Noir']
             
             return validated_contours, tracked_centroids
             
         except Exception as e:
             logger.error(f"[ERROR] Erreur traitement frame: {e}")
             return {}, {}
+
+    def _is_valid_card_shape(self, contour, proc_w=320, proc_h=180):
+        """Vérifie si la forme géométrique du contour correspond à une carte électronique rectangulaire (avec tolérance)"""
+        try:
+            # 1. Aire et enveloppe convexe
+            area = cv2.contourArea(contour)
+            
+            # Ne doit pas être un arrière-plan géant (comme un mur)
+            # Une carte approchée de la caméra peut occuper jusqu'à 60% de l'image
+            max_area_proc = int(proc_w * proc_h * 0.60)
+            if area > max_area_proc:
+                return False
+                
+            hull = cv2.convexHull(contour)
+            hull_area = cv2.contourArea(hull)
+            
+            if hull_area == 0:
+                return False
+                
+            # Solidité (proche de 1.0 pour un rectangle, mais tolérant aux doigts tenant la carte et aux composants)
+            solidity = float(area) / hull_area
+            
+            # Rejeter les formes organiques complexes (doigts, visage, vêtements ont une solidité faible)
+            if solidity < 0.70:
+                return False
+                
+            # 2. Rectangle englobant
+            x, y, w, h = cv2.boundingRect(contour)
+            if w == 0 or h == 0:
+                return False
+                
+            # Vérifier si l'objet touche trop de bords de l'image (indice d'un mur d'arrière-plan ou d'une table)
+            touches_left = x <= 2
+            touches_right = (x + w) >= (proc_w - 2)
+            touches_top = y <= 2
+            touches_bottom = (y + h) >= (proc_h - 2)
+            
+            borders_touched = sum([touches_left, touches_right, touches_top, touches_bottom])
+            if borders_touched >= 3:
+                # Touche 3 bords ou plus : c'est un arrière-plan (mur, table, etc.)
+                return False
+                
+            # Aspect ratio de la carte (doit être raisonnable pour un rectangle de circuit)
+            aspect_ratio = float(w) / h
+            if aspect_ratio < 0.35 or aspect_ratio > 2.8:
+                return False
+                
+            # Rectangularité / Étendue (Extent)
+            # Permet des composants manquants ou de couleur différente sur les côtés de la carte
+            extent = float(area) / (w * h)
+            if extent < 0.45:
+                return False
+                
+            return True
+        except:
+            return False
 
     def emit_detection_event(self, color_name, centroid, area, image_filename):
         """Émet un événement de détection"""
@@ -217,7 +306,7 @@ class DetectionService:
         logger.info(f"[EVENT] Détection émise: {color_name} at {centroid}")
 
     def _create_color_mask(self, hsv, ranges):
-        """Crée un masque pour une couleur donnée"""
+        """Crée un masque pour une couleur donnée (version optimisée)"""
         if 'lower1' in ranges and 'lower2' in ranges:
             # Pour le rouge qui traverse la limite HSV (0-180)
             mask1 = cv2.inRange(hsv, ranges['lower1'], ranges['upper1'])
@@ -227,10 +316,10 @@ class DetectionService:
             # Pour les autres couleurs
             mask = cv2.inRange(hsv, ranges['lower'], ranges['upper'])
         
-        # Opérations morphologiques pour nettoyer le masque
+        # Opération morphologique pour éliminer le bruit (MORPH_OPEN) puis remplir les petits trous (MORPH_CLOSE)
         kernel = np.ones((5, 5), np.uint8)
-        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
         mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
         
         return mask
 
@@ -280,7 +369,6 @@ class DetectionService:
                 'Rouge': (0, 0, 255),
                 'Vert': (0, 255, 0),
                 'Bleu': (255, 0, 0),
-                'Jaune': (0, 255, 255),
                 'Noir': (128, 128, 128)
             }
             
@@ -325,7 +413,6 @@ class DetectionService:
                 'Rouge': (0, 0, 255),
                 'Vert': (0, 255, 0),
                 'Bleu': (255, 0, 0),
-                'Jaune': (0, 255, 255),
                 'Noir': (128, 128, 128)
             }
             

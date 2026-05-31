@@ -113,7 +113,6 @@ class DynamicColorMapping:
             'Rouge': {'g_id': '1001', 'type_name': 'Carte microchip'},
             'Vert': {'g_id': '1002', 'type_name': 'Carte personnalisée'},
             'Bleu': {'g_id': '1003', 'type_name': 'STM32'},
-            'Jaune': {'g_id': '1004', 'type_name': 'Composant jaune'},
             'Noir': {'g_id': '1005', 'type_name': 'Composant noir'},
         }
     
@@ -131,17 +130,24 @@ class DynamicColorMapping:
                 # Convertir en format utilisable
                 new_mapping = {}
                 for mapping in mappings:
+                    if mapping['g_id'] == '0000':
+                        continue  # Ignorer les couleurs supprimées
                     color_key = mapping['color'].capitalize()
                     new_mapping[color_key] = {
                         'g_id': mapping['g_id'],
                         'type_name': mapping['type_name']
                     }
                 
-                if new_mapping:
-                    self.color_mapping = new_mapping
-                    self.last_update = time.time()
-                    self.connection_attempts = 0
-                    print(f"[OK] Mappings mis à jour: {len(new_mapping)} couleurs")
+                # Mettre à jour (même si vide)
+                self.color_mapping = new_mapping
+                self.last_update = time.time()
+                self.connection_attempts = 0
+                
+                # Mettre à jour les couleurs actives dans OpenCV
+                if 'flask_service' in globals() and hasattr(flask_service, 'detection_service') and flask_service.detection_service is not None:
+                    flask_service.detection_service.set_active_colors(list(new_mapping.keys()))
+                    
+                print(f"[OK] Mappings mis à jour: {len(new_mapping)} couleurs actives")
                 
         except requests.exceptions.RequestException as e:
             self.connection_attempts += 1
@@ -315,40 +321,40 @@ class FlaskDetectionService:
         print("🔍 Monitoring des détections arrêté")
     
     def _detection_monitor_worker(self):
-        """Worker qui surveille les détections et les envoie via WebSocket"""
+        """Worker qui surveille les détections pré-calculées en cache et les envoie via WebSocket"""
         print("🔄 Worker de monitoring des détections démarré")
         
         while self.is_monitoring:
             try:
-                if hasattr(self.detection_service, 'get_current_frame'):
-                    frame = self.detection_service.get_current_frame()
+                # Récupérer les détections pré-calculées depuis le cache (0 calcul redondant)
+                if hasattr(self.detection_service, 'get_cached_detections'):
+                    validated_contours, tracked_centroids = self.detection_service.get_cached_detections()
                     
-                    if frame is not None:
-                        if hasattr(self.detection_service, 'process_frame'):
-                            validated_contours, tracked_centroids = self.detection_service.process_frame(frame)
-                            
-                            if validated_contours:
-                                for color_name, (contour, (cx, cy)) in validated_contours.items():
-                                    current_time = time.time()
-                                    last_detection = self.last_detections.get(color_name, 0)
+                    if validated_contours:
+                        frame = self.detection_service.get_current_frame()
+                        if frame is not None:
+                            for color_name, (contour, (cx, cy)) in validated_contours.items():
+                                current_time = time.time()
+                                last_detection = self.last_detections.get(color_name, 0)
+                                
+                                if current_time - last_detection > DETECTION_COOLDOWN:
+                                    area = cv2.contourArea(contour)
                                     
-                                    if current_time - last_detection > DETECTION_COOLDOWN:
-                                        area = cv2.contourArea(contour)
-                                        
-                                        detection_data = {
-                                            'color': color_name,
-                                            'centroid': [int(cx), int(cy)],
-                                            'area': int(area),
-                                            'timestamp': datetime.now().isoformat()
-                                        }
-                                        
-                                        socketio.emit('detection_update', detection_data)
-                                        self._capture_and_send_detection(frame, color_name)
-                                        
-                                        self.last_detections[color_name] = current_time
-                                        self.stats['total_detections'] += 1
+                                    detection_data = {
+                                        'color': color_name,
+                                        'centroid': [int(cx), int(cy)],
+                                        'area': int(area),
+                                        'timestamp': datetime.now().isoformat()
+                                    }
+                                    
+                                    socketio.emit('detection_update', detection_data)
+                                    self._capture_and_send_detection(frame, color_name)
+                                    
+                                    self.last_detections[color_name] = current_time
+                                    self.stats['total_detections'] += 1
                 
-                time.sleep(0.5)
+                # Vérification rapide du cache toutes les 100ms
+                time.sleep(0.1)
                 
             except Exception as e:
                 print(f"[ERROR] Erreur dans le worker de monitoring: {e}")
